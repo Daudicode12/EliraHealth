@@ -1,23 +1,34 @@
-import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { getDoctorByUserId, updateDoctorProfile } from "@/lib/services/doctorService";
+import { getExpertByUserId, updateExpert } from "@/lib/db/queries";
+import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
+import { revalidatePath } from "next/cache";
 
 export default async function ProfilePage() {
-  const supabase = await createSupabaseServerClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) redirect("/login");
+  const token = (await cookies()).get("auth-token")?.value;
+  const userId = token?.replace("mock-token-", "");
 
-  const doctor = await getDoctorByUserId(user.id);
+  if (!userId) redirect("/login");
+
+  const doctor = await getExpertByUserId(userId);
   if (!doctor) redirect("/login");
 
   async function updateProfile(formData: FormData) {
     "use server";
-    await updateDoctorProfile(doctor!.id, {
+    const token = (await cookies()).get("auth-token")?.value;
+    const userId = token?.replace("mock-token-", "");
+    if (!userId) return;
+    
+    const doctor = await getExpertByUserId(userId);
+    if (!doctor) return;
+
+    await updateExpert(doctor.id, {
       bio: formData.get("bio") as string,
       hospital: formData.get("hospital") as string,
-      consultation_fee: Number(formData.get("consultation_fee")),
-      years_experience: Number(formData.get("years_experience")),
+      hourly_rate: Number(formData.get("hourly_rate")),
+      years_of_experience: Number(formData.get("years_of_experience")),
     });
+    
+    revalidatePath("/doctor/profile");
   }
 
   return (
@@ -26,8 +37,8 @@ export default async function ProfilePage() {
       <form action={updateProfile} className="space-y-4">
         {[
           { name: "hospital", label: "Hospital", defaultValue: doctor.hospital ?? "" },
-          { name: "years_experience", label: "Years of Experience", defaultValue: String(doctor.years_experience) },
-          { name: "consultation_fee", label: "Consultation Fee (KES)", defaultValue: String(doctor.consultation_fee) },
+          { name: "years_of_experience", label: "Years of Experience", defaultValue: String(doctor.years_of_experience) },
+          { name: "hourly_rate", label: "Hourly Rate (KES)", defaultValue: String(doctor.hourly_rate) },
         ].map(({ name, label, defaultValue }) => (
           <div key={name} className="space-y-1">
             <label htmlFor={name} className="text-sm font-medium">{label}</label>
