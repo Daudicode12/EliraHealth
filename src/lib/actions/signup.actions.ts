@@ -54,9 +54,10 @@ export async function signupAction(prevState: SignupState | null, formData: Form
       user_id: userId,
       display_name: fullName,
       specialties: JSON.stringify([specialization]),
-      credentials: licenseNumber,
+      license_number: licenseNumber,
+      hospital_name: hospital,
       years_of_experience: yearsExp,
-      is_verified: 0,
+      verification_status: 'pending',
     });
 
     success = true;

@@ -19,9 +19,42 @@ export async function loginAction(formData: FormData) {
     return { error: "Invalid credentials" };
   }
 
-  // Set mock auth token cookie
+  // Set auth token cookie with encoded user data for Edge middleware
   try {
-    const token = `mock-token-${profile.id}`;
+    let status = 'active';
+    let targetPath = "/patient/dashboard";
+    
+    if (profile.role === "admin") {
+      targetPath = "/admin/dashboard";
+    } else if (profile.role === "expert") {
+      try {
+        const expert = await getExpertByUserId(profile.id);
+        status = expert?.verification_status || 'pending';
+        
+        if (status === 'approved') {
+          targetPath = "/doctor/dashboard";
+        } else if (status === 'rejected') {
+          targetPath = "/application-rejected";
+        } else if (status === 'suspended') {
+          targetPath = "/account-suspended";
+        } else {
+          targetPath = "/verification-pending";
+        }
+      } catch (error) {
+        console.error("Expert check error:", error);
+        targetPath = "/verification-pending";
+        status = 'pending';
+      }
+    }
+
+    // Create a simple payload. In a real app, this would be a signed JWT.
+    const payload = Buffer.from(JSON.stringify({
+      id: profile.id,
+      role: profile.role,
+      status: status
+    })).toString('base64');
+
+    const token = `mock-jwt-${payload}`;
     const cookieStore = await cookies();
     cookieStore.set("auth-token", token, {
       httpOnly: true,
@@ -30,31 +63,13 @@ export async function loginAction(formData: FormData) {
       maxAge: 60 * 60 * 24 * 7, // 1 week
       path: "/",
     });
+
+    redirect(targetPath);
   } catch (error) {
+    if ((error as Error).message === "NEXT_REDIRECT") throw error;
     console.error("Cookie error:", error);
     return { error: "Failed to set session" };
   }
-
-  // Role-based redirect logic
-  let targetPath = "/patient/dashboard";
-  
-  if (profile.role === "admin") {
-    targetPath = "/admin/dashboard";
-  } else if (profile.role === "expert") {
-    try {
-      const expert = await getExpertByUserId(profile.id);
-      if (expert?.is_verified) {
-        targetPath = "/doctor/dashboard";
-      } else {
-        targetPath = "/verification-pending";
-      }
-    } catch (error) {
-      console.error("Expert check error:", error);
-      targetPath = "/verification-pending";
-    }
-  }
-
-  redirect(targetPath);
 }
 
 export async function logoutAction() {

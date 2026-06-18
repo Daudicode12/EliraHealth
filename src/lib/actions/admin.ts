@@ -8,7 +8,8 @@ import {
 import { revalidatePath } from "next/cache";
 
 export async function approveExpertAction(expertId: string) {
-  await approveExpert(expertId);
+  // In a real scenario, this would come from the admin's session
+  await approveExpert(expertId, 'admin-action');
   revalidatePath("/admin/dashboard");
   return { success: true };
 }

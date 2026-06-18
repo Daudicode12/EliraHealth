@@ -23,11 +23,18 @@ export interface Expert {
   bio?: string | null;
   avatar_url?: string | null;
   specialties: string; // JSON string
-  credentials: string | null;
+  license_number: string | null;
+  medical_council_number?: string | null;
+  practicing_certificate_url?: string | null;
+  hospital_name?: string | null;
   years_of_experience: number;
   hourly_rate: number;
   currency?: string;
-  is_verified: number; // 0 or 1
+  verification_status: 'pending' | 'approved' | 'rejected' | 'suspended';
+  verified_at?: string | null;
+  verified_by?: string | null;
+  rejection_reason?: string | null;
+  admin_notes?: string | null;
   is_available: number; // 0 or 1
   average_rating: number;
   total_reviews: number;

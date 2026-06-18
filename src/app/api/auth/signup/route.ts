@@ -39,9 +39,10 @@ export async function POST(req: NextRequest) {
         user_id: userId,
         display_name: `${validatedData.firstName} ${validatedData.lastName}`,
         specialties: JSON.stringify(validatedData.specialties),
-        credentials: validatedData.credentials,
+        license_number: validatedData.credentials || null,
         years_of_experience: validatedData.yearsOfExperience || 0,
         hourly_rate: validatedData.hourlyRate || 0,
+        verification_status: 'pending',
       });
     }
     

@@ -7,7 +7,7 @@ export async function PATCH(
 ) {
   try {
     const { id } = await params;
-    await rejectExpert(id);
+    await rejectExpert(id, 'Rejected by admin via API');
     return NextResponse.json({ success: true, message: 'Expert rejected and removed' });
   } catch (error) {
     console.error('Reject Expert Error:', error);

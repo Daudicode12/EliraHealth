@@ -23,7 +23,7 @@ export default async function ProfilePage() {
 
     await updateExpert(doctor.id, {
       bio: formData.get("bio") as string,
-      hospital: formData.get("hospital") as string,
+      hospital_name: formData.get("hospital") as string,
       hourly_rate: Number(formData.get("hourly_rate")),
       years_of_experience: Number(formData.get("years_of_experience")),
     });
@@ -36,7 +36,7 @@ export default async function ProfilePage() {
       <h1 className="text-xl font-semibold">Profile</h1>
       <form action={updateProfile} className="space-y-4">
         {[
-          { name: "hospital", label: "Hospital", defaultValue: doctor.hospital ?? "" },
+          { name: "hospital", label: "Hospital", defaultValue: doctor.hospital_name ?? "" },
           { name: "years_of_experience", label: "Years of Experience", defaultValue: String(doctor.years_of_experience) },
           { name: "hourly_rate", label: "Hourly Rate (KES)", defaultValue: String(doctor.hourly_rate) },
         ].map(({ name, label, defaultValue }) => (

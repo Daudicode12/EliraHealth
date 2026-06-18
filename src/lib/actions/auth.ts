@@ -24,7 +24,9 @@ export async function loginUser(formData: FormData) {
   if (profile.role === "admin") redirect("/admin/dashboard");
   if (profile.role === "expert") {
     const expert = await getExpertByUserId(profile.id);
-    if (expert?.is_verified) redirect("/doctor/dashboard");
+    if (expert?.verification_status === 'approved') redirect("/doctor/dashboard");
+    if (expert?.verification_status === 'rejected') redirect("/application-rejected");
+    if (expert?.verification_status === 'suspended') redirect("/account-suspended");
     redirect("/verification-pending");
   }
   redirect("/patient/dashboard");
@@ -50,7 +52,7 @@ export async function signupExpert(formData: FormData) {
     user_id: userId,
     display_name: `${firstName} ${lastName}`,
     specialties: JSON.stringify(specialties),
-    is_verified: 0,
+    verification_status: 'pending',
   });
   
   redirect("/verification-pending");

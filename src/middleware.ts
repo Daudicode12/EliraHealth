@@ -9,7 +9,6 @@ export async function middleware(request: NextRequest) {
     pathname.startsWith("/_next") || 
     pathname === "/favicon.ico" ||
     pathname === "/signup" ||
-    pathname === "/verification-pending" ||
     pathname === "/login"
   ) {
     return NextResponse.next();
@@ -18,13 +17,48 @@ export async function middleware(request: NextRequest) {
   // Get token from cookies
   const token = request.cookies.get("auth-token")?.value;
   
-  if (!token && pathname !== "/login") {
+  if (!token) {
     return NextResponse.redirect(new URL("/login", request.url));
   }
 
-  // For now, we allow the request to proceed and let the page 
-  // handle specific role checks to avoid Edge Runtime DB issues.
-  return NextResponse.next();
+  try {
+    // Decode the mock JWT payload
+    const payloadStr = token.replace("mock-jwt-", "");
+    const decoded = JSON.parse(Buffer.from(payloadStr, "base64").toString("utf-8"));
+    const { role, status } = decoded;
+
+    // Specialist Protection
+    if (role === "expert" && pathname.startsWith("/doctor")) {
+      if (status === "pending") {
+        return NextResponse.redirect(new URL("/verification-pending", request.url));
+      }
+      if (status === "rejected") {
+        return NextResponse.redirect(new URL("/application-rejected", request.url));
+      }
+      if (status === "suspended") {
+        return NextResponse.redirect(new URL("/account-suspended", request.url));
+      }
+      // If approved, allow access
+    }
+
+    // Admin Protection
+    if (pathname.startsWith("/admin") && role !== "admin") {
+      return NextResponse.redirect(new URL("/login", request.url));
+    }
+
+    // Patient Protection
+    if (pathname.startsWith("/patient") && role !== "user") {
+      return NextResponse.redirect(new URL("/login", request.url));
+    }
+
+    return NextResponse.next();
+  } catch (error) {
+    // If token parsing fails, clear it and login again
+    console.error("Middleware decode error:", error);
+    const response = NextResponse.redirect(new URL("/login", request.url));
+    response.cookies.delete("auth-token");
+    return response;
+  }
 }
 
 export const config = {
