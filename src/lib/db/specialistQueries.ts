@@ -5,10 +5,10 @@ import { MedicalRecord, PatientAssignment, SpecialistDashboard } from '../types/
 // Helper for fetching dashboard stats
 export async function getSpecialistDashboardStats(specialistId: string): Promise<SpecialistDashboard> {
   const [assignedRes, totalConsRes, completedConsRes, pendingConsRes, recordsRes] = await Promise.all([
-    getOne<{ count: number }>('SELECT COUNT(*) as count FROM patient_specialist_assignments WHERE specialist_id = ? AND status = "active"', [specialistId]),
+    getOne<{ count: number }>('SELECT COUNT(*) as count FROM patient_specialist_assignments WHERE specialist_id = ? AND status = \'active\'', [specialistId]),
     getOne<{ count: number }>('SELECT COUNT(*) as count FROM consultations WHERE expert_id = ?', [specialistId]),
-    getOne<{ count: number }>('SELECT COUNT(*) as count FROM consultations WHERE expert_id = ? AND status = "completed"', [specialistId]),
-    getOne<{ count: number }>('SELECT COUNT(*) as count FROM consultations WHERE expert_id = ? AND status = "pending"', [specialistId]),
+    getOne<{ count: number }>('SELECT COUNT(*) as count FROM consultations WHERE expert_id = ? AND status = \'completed\'', [specialistId]),
+    getOne<{ count: number }>('SELECT COUNT(*) as count FROM consultations WHERE expert_id = ? AND status = \'pending\'', [specialistId]),
     getOne<{ count: number }>('SELECT COUNT(*) as count FROM medical_records WHERE specialist_id = ?', [specialistId])
   ]);
 
