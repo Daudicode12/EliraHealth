@@ -3,7 +3,9 @@ import { logoutAction } from "@/lib/actions/auth.actions";
 
 const NAV = [
   { href: "/doctor/dashboard", label: "Dashboard" },
+  { href: "/doctor/patients", label: "My Patients" },
   { href: "/doctor/consultations", label: "Consultations" },
+  { href: "/doctor/medical-records", label: "Medical Records" },
   { href: "/doctor/availability", label: "Availability" },
   { href: "/doctor/profile", label: "Profile" },
 ];

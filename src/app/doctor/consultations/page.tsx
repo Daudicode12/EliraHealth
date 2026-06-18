@@ -1,6 +1,7 @@
-import { getExpertByUserId, getExpertConsultations } from "@/lib/db/queries";
+import { getExpertByUserId, getExpertConsultations, updateConsultationStatus } from "@/lib/db/queries";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
+import { revalidatePath } from "next/cache";
 
 const STATUS_STYLES: Record<string, string> = {
   pending: "bg-yellow-100 text-yellow-700",
@@ -22,25 +23,56 @@ export default async function ConsultationsPage() {
 
   const consultations = await getExpertConsultations(doctor.id);
 
+  async function handleComplete(formData: FormData) {
+    "use server";
+    const id = formData.get("id") as string;
+    await updateConsultationStatus(id, "completed");
+    revalidatePath("/doctor/consultations");
+  }
+
   return (
-    <div className="space-y-4">
-      <h1 className="text-xl font-semibold">Consultations</h1>
+    <div className="space-y-6">
+      <div className="flex justify-between items-center">
+        <h1 className="text-2xl font-bold tracking-tight">Consultations</h1>
+      </div>
+
       {consultations.length === 0 ? (
-        <p className="text-sm text-muted-foreground">No consultations yet.</p>
+        <div className="p-12 text-center border rounded-xl bg-gray-50 border-dashed">
+          <p className="text-gray-500">No consultations yet.</p>
+        </div>
       ) : (
-        <div className="rounded-xl border divide-y overflow-hidden">
+        <div className="rounded-xl border divide-y overflow-hidden bg-white">
           {consultations.map((c) => (
-            <div key={c.id} className="flex items-center justify-between px-4 py-3">
+            <div key={c.id} className="flex items-center justify-between p-5 hover:bg-gray-50 transition-colors">
               <div>
-                <p className="text-sm font-medium">{c.issue_category || 'General Consultation'}</p>
-                <p className="text-xs text-muted-foreground">{c.issue_description}</p>
-                <p className="text-xs text-muted-foreground mt-0.5">
-                  Patient: {c.first_name} {c.last_name} · {c.scheduled_at ? new Date(c.scheduled_at).toLocaleString() : 'Not scheduled'}
-                </p>
+                <p className="text-base font-medium text-gray-900">{c.issue_category || 'General Consultation'}</p>
+                <p className="text-sm text-gray-600 mt-1">{c.issue_description}</p>
+                <div className="flex gap-4 mt-3">
+                  <p className="text-xs text-gray-500 font-medium">
+                    <span className="uppercase tracking-wider text-[10px] mr-1">Patient:</span> 
+                    {c.first_name} {c.last_name}
+                  </p>
+                  <p className="text-xs text-gray-500 font-medium">
+                    <span className="uppercase tracking-wider text-[10px] mr-1">Schedule:</span> 
+                    {c.scheduled_at ? new Date(c.scheduled_at).toLocaleString() : 'Not scheduled'}
+                  </p>
+                </div>
               </div>
-              <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${STATUS_STYLES[c.status] || "bg-gray-100 text-gray-700"}`}>
-                {c.status.toUpperCase()}
-              </span>
+              
+              <div className="flex flex-col items-end gap-3">
+                <span className={`rounded-full px-3 py-1 text-xs font-bold uppercase tracking-wider ${STATUS_STYLES[c.status] || "bg-gray-100 text-gray-700"}`}>
+                  {c.status}
+                </span>
+                
+                {(c.status === "in_progress" || c.status === "confirmed") && (
+                  <form action={handleComplete}>
+                    <input type="hidden" name="id" value={c.id} />
+                    <button type="submit" className="text-xs font-medium text-white bg-green-600 hover:bg-green-700 px-3 py-1.5 rounded-md transition-colors shadow-sm">
+                      Mark Completed
+                    </button>
+                  </form>
+                )}
+              </div>
             </div>
           ))}
         </div>
