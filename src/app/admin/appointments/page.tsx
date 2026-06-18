@@ -40,69 +40,84 @@ export default async function AdminAppointmentsPage() {
   ]);
 
   return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <h1 className="text-2xl font-bold tracking-tight">All Appointments</h1>
+    <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+      <div className="flex justify-between items-end bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+        <div>
+          <h1 className="text-2xl font-bold text-slate-900 tracking-tight flex items-center gap-3">
+            <Calendar className="text-blue-600" />
+            All Appointments
+          </h1>
+          <p className="text-slate-500 mt-1">Monitor all patient and specialist appointments across the platform.</p>
+        </div>
       </div>
 
       {/* Stats Cards */}
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
         {[
-          { label: "Total", value: stats.totalAppointments, color: "text-gray-900" },
-          { label: "Pending", value: stats.pendingAppointments, color: "text-yellow-600" },
-          { label: "Confirmed", value: stats.confirmedAppointments, color: "text-blue-600" },
-          { label: "Completed", value: stats.completedAppointments, color: "text-green-600" },
-          { label: "Cancelled", value: stats.cancelledAppointments, color: "text-red-600" },
-          { label: "No Shows", value: stats.noShowAppointments, color: "text-gray-600" },
+          { label: "Total", value: stats.totalAppointments, color: "text-slate-900", bg: "bg-slate-50" },
+          { label: "Pending", value: stats.pendingAppointments, color: "text-yellow-600", bg: "bg-yellow-50" },
+          { label: "Confirmed", value: stats.confirmedAppointments, color: "text-blue-600", bg: "bg-blue-50" },
+          { label: "Completed", value: stats.completedAppointments, color: "text-green-600", bg: "bg-green-50" },
+          { label: "Cancelled", value: stats.cancelledAppointments, color: "text-red-600", bg: "bg-red-50" },
+          { label: "No Shows", value: stats.noShowAppointments, color: "text-gray-600", bg: "bg-gray-100" },
         ].map((stat) => (
-          <div key={stat.label} className="bg-white border rounded-xl p-4 shadow-sm">
-            <p className="text-xs text-gray-500 uppercase tracking-wider font-semibold mb-1">{stat.label}</p>
-            <p className={`text-2xl font-bold ${stat.color}`}>{stat.value}</p>
+          <div key={stat.label} className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm hover:shadow-md transition-shadow relative overflow-hidden">
+            <div className={`absolute -right-4 -top-4 w-16 h-16 rounded-full opacity-50 ${stat.bg}`} />
+            <p className="text-[11px] text-slate-500 uppercase tracking-wider font-bold mb-1">{stat.label}</p>
+            <p className={`text-3xl font-black ${stat.color} relative z-10`}>{stat.value}</p>
           </div>
         ))}
       </div>
 
       {/* Appointments List */}
-      <div className="bg-white border rounded-xl overflow-hidden shadow-sm">
-        <div className="p-4 border-b bg-gray-50 flex items-center gap-2">
-          <Calendar size={18} className="text-gray-500" />
-          <h2 className="font-semibold text-gray-900">Recent Appointments</h2>
+      <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
+        <div className="p-5 border-b border-slate-100 bg-slate-50/50 flex items-center gap-2">
+          <Calendar size={18} className="text-slate-400" />
+          <h2 className="font-bold text-slate-700 uppercase tracking-wider text-xs">Recent Appointments</h2>
         </div>
         
         {appointments.length === 0 ? (
-          <div className="p-8 text-center text-gray-500">No appointments found.</div>
+          <div className="py-20 flex flex-col items-center justify-center bg-slate-50/30">
+            <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mb-4">
+              <Calendar className="text-slate-400" size={32} />
+            </div>
+            <h3 className="text-lg font-bold text-slate-900">No appointments found</h3>
+            <p className="text-slate-500 text-sm mt-1 max-w-sm text-center">
+              There are currently no appointments scheduled in the system.
+            </p>
+          </div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-sm text-left">
-              <thead className="bg-gray-50 text-gray-500 text-xs uppercase font-semibold">
+              <thead className="bg-slate-50/50 text-slate-500 text-[11px] uppercase font-bold tracking-wider border-b border-slate-100">
                 <tr>
-                  <th className="px-6 py-3 border-b">Patient</th>
-                  <th className="px-6 py-3 border-b">Specialist</th>
-                  <th className="px-6 py-3 border-b">Date & Time</th>
-                  <th className="px-6 py-3 border-b">Status</th>
-                  <th className="px-6 py-3 border-b">Reason</th>
+                  <th className="px-6 py-4">Patient</th>
+                  <th className="px-6 py-4">Specialist</th>
+                  <th className="px-6 py-4">Date & Time</th>
+                  <th className="px-6 py-4">Status</th>
+                  <th className="px-6 py-4">Reason</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-100">
+              <tbody className="divide-y divide-slate-100">
                 {appointments.map((appt: any) => (
-                  <tr key={appt.id} className="hover:bg-gray-50 transition-colors">
-                    <td className="px-6 py-4 font-medium text-gray-900">
+                  <tr key={appt.id} className="hover:bg-slate-50 transition-colors group">
+                    <td className="px-6 py-4 font-semibold text-slate-900">
                       {appt.patient_first_name} {appt.patient_last_name}
                     </td>
-                    <td className="px-6 py-4 text-gray-600">
+                    <td className="px-6 py-4 font-medium text-slate-600">
                       Dr. {appt.specialist_name}
                     </td>
                     <td className="px-6 py-4">
-                      <div className="font-medium text-gray-900">{new Date(appt.appointment_date).toLocaleDateString()}</div>
-                      <div className="text-gray-500 text-xs">{appt.start_time} - {appt.end_time}</div>
+                      <div className="font-bold text-slate-900">{new Date(appt.appointment_date).toLocaleDateString()}</div>
+                      <div className="text-slate-500 text-xs font-medium mt-0.5">{appt.start_time} - {appt.end_time}</div>
                     </td>
                     <td className="px-6 py-4">
-                      <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold border ${STATUS_STYLES[appt.status]}`}>
+                      <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider shadow-sm ${STATUS_STYLES[appt.status]}`}>
                         {STATUS_ICONS[appt.status]}
                         {appt.status}
                       </span>
                     </td>
-                    <td className="px-6 py-4 text-gray-500 text-xs max-w-xs truncate" title={appt.reason_for_visit}>
+                    <td className="px-6 py-4 text-slate-500 text-xs max-w-xs truncate" title={appt.reason_for_visit}>
                       {appt.reason_for_visit || "N/A"}
                     </td>
                   </tr>

@@ -57,54 +57,79 @@ export default async function DoctorAppointmentsPage() {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <h1 className="text-2xl font-bold tracking-tight">My Appointments</h1>
+    <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+      <div className="flex justify-between items-end bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+        <div>
+          <h1 className="text-2xl font-bold text-slate-900 tracking-tight flex items-center gap-3">
+            <Calendar className="text-emerald-600" />
+            My Appointments
+          </h1>
+          <p className="text-slate-500 mt-1">Manage your upcoming and past patient appointments.</p>
+        </div>
       </div>
 
-      <div className="bg-white border rounded-xl overflow-hidden shadow-sm">
-        <div className="p-4 border-b bg-gray-50 flex items-center gap-2">
-          <Calendar size={18} className="text-gray-500" />
-          <h2 className="font-semibold text-gray-900">Scheduled Appointments</h2>
+      <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
+        <div className="p-5 border-b border-slate-100 bg-slate-50/50 flex items-center gap-2">
+          <Calendar size={18} className="text-slate-400" />
+          <h2 className="font-bold text-slate-700 uppercase tracking-wider text-xs">Scheduled Appointments</h2>
         </div>
         
         {appointments.length === 0 ? (
-          <div className="p-12 text-center text-gray-500 border-dashed border-b-0 border-x-0">
-            No appointments booked yet.
+          <div className="py-20 flex flex-col items-center justify-center bg-slate-50/30">
+            <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mb-4">
+              <Calendar className="text-slate-400" size={32} />
+            </div>
+            <h3 className="text-lg font-bold text-slate-900">No appointments scheduled</h3>
+            <p className="text-slate-500 text-sm mt-1 max-w-sm text-center">
+              You currently have no patient appointments booked.
+            </p>
           </div>
         ) : (
-          <div className="divide-y divide-gray-100">
+          <div className="divide-y divide-slate-100">
             {appointments.map((appt: any) => (
-              <div key={appt.id} className="p-5 hover:bg-gray-50 transition-colors flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                <div>
-                  <div className="flex items-center gap-3 mb-1">
-                    <p className="font-medium text-gray-900">
-                      {appt.patient_first_name} {appt.patient_last_name}
-                    </p>
-                    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase tracking-wider border ${STATUS_STYLES[appt.status]}`}>
-                      {STATUS_ICONS[appt.status]}
-                      {appt.status}
-                    </span>
+              <div key={appt.id} className="p-6 hover:bg-slate-50/50 transition-colors flex flex-col sm:flex-row sm:items-center justify-between gap-6 group">
+                <div className="flex gap-4">
+                  <div className="w-12 h-12 rounded-full bg-slate-100 flex items-center justify-center text-slate-500 shrink-0 border border-slate-200">
+                    <UserX size={20} className={appt.status === 'NO_SHOW' ? 'text-red-400' : 'text-slate-400'} />
                   </div>
-                  
-                  <div className="text-sm text-gray-600 mb-2">
-                    <span className="font-medium">Date & Time: </span>
-                    {new Date(appt.appointment_date).toLocaleDateString()} at {appt.start_time} - {appt.end_time}
+                  <div>
+                    <div className="flex items-center gap-3 mb-1.5">
+                      <p className="font-bold text-slate-900 text-lg">
+                        {appt.patient_first_name} {appt.patient_last_name}
+                      </p>
+                      <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider shadow-sm border ${STATUS_STYLES[appt.status]}`}>
+                        {STATUS_ICONS[appt.status]}
+                        {appt.status}
+                      </span>
+                    </div>
+                    
+                    <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-6 text-sm text-slate-600 mb-2">
+                      <div className="flex items-center gap-1.5">
+                        <Calendar size={14} className="text-slate-400" />
+                        <span className="font-semibold">{new Date(appt.appointment_date).toLocaleDateString()}</span>
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        <Clock size={14} className="text-slate-400" />
+                        <span className="font-semibold">{appt.start_time} - {appt.end_time}</span>
+                      </div>
+                    </div>
+                    
+                    <div className="bg-slate-50 p-3 rounded-lg border border-slate-100 inline-block mt-2">
+                      <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-0.5">Reason for visit</p>
+                      <p className="text-sm text-slate-700 font-medium">
+                        {appt.reason_for_visit || "No specific reason provided"}
+                      </p>
+                    </div>
                   </div>
-                  
-                  <p className="text-sm text-gray-500 max-w-lg">
-                    <span className="font-medium text-gray-600">Reason: </span>
-                    {appt.reason_for_visit || "No specific reason provided"}
-                  </p>
                 </div>
                 
-                <div className="flex flex-wrap gap-2 shrink-0">
+                <div className="flex flex-wrap gap-2 shrink-0 sm:self-start mt-2 sm:mt-0">
                   {appt.status === "PENDING" && (
                     <form action={handleAction}>
                       <input type="hidden" name="id" value={appt.id} />
                       <input type="hidden" name="actionType" value="confirm" />
-                      <button type="submit" className="bg-blue-600 hover:bg-blue-700 text-white text-xs font-medium px-3 py-1.5 rounded-md transition-colors shadow-sm">
-                        Confirm
+                      <button type="submit" className="bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold px-4 py-2 rounded-xl transition-all shadow-sm">
+                        Confirm Appointment
                       </button>
                     </form>
                   )}
@@ -114,15 +139,15 @@ export default async function DoctorAppointmentsPage() {
                       <form action={handleAction}>
                         <input type="hidden" name="id" value={appt.id} />
                         <input type="hidden" name="actionType" value="complete" />
-                        <button type="submit" className="bg-green-600 hover:bg-green-700 text-white text-xs font-medium px-3 py-1.5 rounded-md transition-colors shadow-sm">
-                          Complete
+                        <button type="submit" className="bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold px-4 py-2 rounded-xl transition-all shadow-sm">
+                          Mark Completed
                         </button>
                       </form>
                       
                       <form action={handleAction}>
                         <input type="hidden" name="id" value={appt.id} />
                         <input type="hidden" name="actionType" value="no_show" />
-                        <button type="submit" className="bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-medium px-3 py-1.5 rounded-md transition-colors border shadow-sm">
+                        <button type="submit" className="bg-white hover:bg-slate-50 text-slate-700 text-sm font-semibold px-4 py-2 rounded-xl transition-all border border-slate-200 shadow-sm">
                           No Show
                         </button>
                       </form>
