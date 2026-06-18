@@ -4,6 +4,7 @@ import { logoutAction } from "@/lib/actions/auth.actions";
 const NAV = [
   { href: "/admin/dashboard", label: "Dashboard" },
   { href: "/admin/doctors", label: "Doctors" },
+  { href: "/admin/appointments", label: "Appointments" },
 ];
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
