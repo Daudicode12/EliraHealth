@@ -21,7 +21,13 @@ export default async function AdminDoctorsPage({
   async function handleApprove(id: string) {
     "use server";
     const token = (await cookies()).get("auth-token")?.value;
-    const adminId = token?.replace("mock-token-", "") || 'system';
+    let adminId = token?.replace("mock-token-", "") || 'system';
+    if (token?.startsWith("mock-jwt-")) {
+      try {
+        const decoded = JSON.parse(Buffer.from(token.replace("mock-jwt-", ""), "base64").toString("utf-8"));
+        adminId = decoded.id;
+      } catch(e) {}
+    }
     await approveExpert(id, adminId);
     revalidatePath("/admin/doctors");
   }
