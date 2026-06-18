@@ -13,7 +13,13 @@ export default async function PatientDetailsPage({
   const { id: patientId } = await params;
   
   const token = (await cookies()).get("auth-token")?.value;
-  const userId = token?.replace("mock-token-", "");
+  let userId = token?.replace("mock-token-", "");
+  if (token?.startsWith("mock-jwt-")) {
+    try {
+      const decoded = JSON.parse(Buffer.from(token.replace("mock-jwt-", ""), "base64").toString("utf-8"));
+      userId = decoded.id;
+    } catch(e) {}
+  }
 
   if (!userId) redirect("/login");
 
