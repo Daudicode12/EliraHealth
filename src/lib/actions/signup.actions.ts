@@ -1,96 +1,73 @@
 "use server";
 
 import { redirect } from "next/navigation";
-import { registerDoctor } from "@/lib/services/authService";
+import { createProfile, createExpert } from "@/lib/db/queries";
 
-export interface SignupFormData {
-  fullName: string;
-  email: string;
-  password: string;
-  confirmPassword: string;
-  licenseNumber: string;
-  specialization: string;
-  hospital: string;
-  yearsExperience: string;
-}
+export type SignupState = {
+  success?: boolean;
+  errors?: Record<string, string>;
+  message?: string;
+};
 
-export async function signupAction(formData: FormData) {
-  // Extract form data
-  const data: SignupFormData = {
-    fullName: formData.get("fullName") as string,
-    email: formData.get("email") as string,
-    password: formData.get("password") as string,
-    confirmPassword: formData.get("confirmPassword") as string,
-    licenseNumber: formData.get("licenseNumber") as string,
-    specialization: formData.get("specialization") as string,
-    hospital: formData.get("hospital") as string,
-    yearsExperience: formData.get("yearsExperience") as string,
-  };
+export async function signupAction(prevState: SignupState | null, formData: FormData): Promise<SignupState> {
+  const fullName = formData.get("fullName") as string;
+  const email = formData.get("email") as string;
+  const password = formData.get("password") as string;
+  const confirmPassword = formData.get("confirmPassword") as string;
+  const licenseNumber = formData.get("licenseNumber") as string;
+  const specialization = formData.get("specialization") as string;
+  const hospital = formData.get("hospital") as string;
+  const yearsExperience = formData.get("yearsExperience") as string;
 
-  // Server-side validation
-  const errors: Partial<Record<keyof SignupFormData, string>> = {};
+  // Validation
+  const errors: Record<string, string> = {};
 
-  if (!data.fullName || data.fullName.trim().length < 2) {
-    errors.fullName = "Full name must be at least 2 characters";
-  }
-
-  if (!data.email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.email)) {
-    errors.email = "Please enter a valid email address";
-  }
-
-  if (!data.password || data.password.length < 8) {
-    errors.password = "Password must be at least 8 characters";
-  }
-
-  if (data.password !== data.confirmPassword) {
-    errors.confirmPassword = "Passwords do not match";
-  }
-
-  if (!data.licenseNumber || data.licenseNumber.trim().length < 3) {
-    errors.licenseNumber = "Please enter a valid license number";
-  }
-
-  if (!data.specialization) {
-    errors.specialization = "Please select a specialization";
-  }
-
-  if (!data.hospital || data.hospital.trim().length < 2) {
-    errors.hospital = "Please enter hospital/clinic name";
-  }
-
-  const yearsExp = parseInt(data.yearsExperience);
-  if (isNaN(yearsExp) || yearsExp < 0 || yearsExp > 70) {
-    errors.yearsExperience = "Please enter valid years of experience (0-70)";
-  }
+  if (!fullName || fullName.trim().length < 2) errors.fullName = "Full name required";
+  if (!email || !email.includes("@")) errors.email = "Valid email required";
+  if (!password || password.length < 8) errors.password = "Min 8 characters";
+  if (password !== confirmPassword) errors.confirmPassword = "Passwords match required";
+  if (!licenseNumber) errors.licenseNumber = "License number required";
+  if (!specialization) errors.specialization = "Specialization required";
+  if (!hospital) errors.hospital = "Hospital required";
+  
+  const yearsExp = parseInt(yearsExperience);
+  if (isNaN(yearsExp)) errors.yearsExperience = "Valid years required";
 
   if (Object.keys(errors).length > 0) {
     return { success: false, errors };
   }
 
-  // Call registration service
-  const result = await registerDoctor({
-    full_name: data.fullName,
-    email: data.email,
-    password: data.password,
-    license_number: data.licenseNumber,
-    specialization: data.specialization,
-    hospital: data.hospital,
-    years_experience: yearsExp,
-  });
+  let success = false;
+  try {
+    const userId = crypto.randomUUID();
+    const names = fullName.split(" ");
+    
+    await createProfile({
+      id: userId,
+      email,
+      first_name: names[0],
+      last_name: names.slice(1).join(" "),
+      role: 'expert',
+    });
 
-  if (!result.success) {
-    return {
-      success: false,
-      errors: {
-        email:
-          result.error?.includes("already registered") ||
-          result.error?.includes("already exists")
-            ? "This email is already registered"
-            : result.error || "Registration failed",
-      },
-    };
+    await createExpert({
+      user_id: userId,
+      display_name: fullName,
+      specialties: JSON.stringify([specialization]),
+      credentials: licenseNumber,
+      years_of_experience: yearsExp,
+      is_verified: 0,
+    });
+
+    success = true;
+  } catch (error) {
+    console.error("Signup error:", error);
+    return { success: false, message: "Database error. Please try again." };
   }
 
-  // Success - redirect to verification pending page
-  redirect("/verification-pending");
+  if (success) {
+    redirect("/verification-pending");
+  }
+
+  return { success: true };
 }
