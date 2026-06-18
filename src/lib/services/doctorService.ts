@@ -4,7 +4,7 @@ export async function getApprovedDoctors() {
   const supabase = await createSupabaseServerClient();
   const { data, error } = await supabase
     .from("doctors")
-    .select("*, users(full_name, avatar_url, email)")
+    .select("*, profiles(full_name, avatar_url, email)")
     .eq("verification_status", "APPROVED")
     .eq("is_available", true);
   if (error) throw new Error(error.message);
@@ -15,7 +15,7 @@ export async function getDoctorById(id: string) {
   const supabase = await createSupabaseServerClient();
   const { data, error } = await supabase
     .from("doctors")
-    .select("*, users(full_name, avatar_url, email), doctor_availability(*)")
+    .select("*, profiles(full_name, avatar_url, email), doctor_availability(*)")
     .eq("id", id)
     .single();
   if (error) throw new Error(error.message);
@@ -26,7 +26,7 @@ export async function getDoctorByUserId(userId: string) {
   const supabase = await createSupabaseServerClient();
   const { data, error } = await supabase
     .from("doctors")
-    .select("*, users(*), doctor_availability(*)")
+    .select("*, profiles(*), doctor_availability(*)")
     .eq("user_id", userId)
     .single();
   if (error) return null;
