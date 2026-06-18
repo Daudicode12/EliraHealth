@@ -79,7 +79,7 @@ export default async function AdminDoctorsPage({
           </div>
         ) : (
           <div className="space-y-4">
-            {doctors.map((doctor) => (
+            {doctors.map((doctor: any) => (
               <ExpandableDoctorCard 
                 key={doctor.id} 
                 doctor={doctor} 
