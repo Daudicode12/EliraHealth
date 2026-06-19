@@ -1,19 +1,10 @@
+// src/components/forms/SignupForm.tsx
 "use client";
 
 import { useActionState } from "react";
 import { FormInput } from "@/components/forms/FormInput";
-import { FormSelect } from "@/components/forms/FormSelect";
 import { signupAction, SignupState } from "@/lib/actions/signup.actions";
 import Link from "next/link";
-
-const SPECIALIZATIONS = [
-  { value: "Gynecologist", label: "Gynecologist" },
-  { value: "Obstetrician", label: "Obstetrician" },
-  { value: "Reproductive Endocrinologist", label: "Reproductive Endocrinologist" },
-  { value: "Maternal-Fetal Medicine", label: "Maternal-Fetal Medicine" },
-  { value: "Gynecologic Oncologist", label: "Gynecologic Oncologist" },
-  { value: "Urogynecologist", label: "Urogynecologist" },
-];
 
 const initialState: SignupState = {};
 
@@ -28,15 +19,27 @@ export function SignupForm() {
         </div>
       )}
 
-      <FormInput
-        label="Full Name"
-        name="fullName"
-        type="text"
-        required
-        placeholder="Dr. Jane Smith"
-        error={state?.errors?.fullName}
-        disabled={isPending}
-      />
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <FormInput
+          label="First Name"
+          name="firstName"
+          type="text"
+          required
+          placeholder="Jane"
+          error={state?.errors?.firstName}
+          disabled={isPending}
+        />
+
+        <FormInput
+          label="Last Name"
+          name="lastName"
+          type="text"
+          required
+          placeholder="Smith"
+          error={state?.errors?.lastName}
+          disabled={isPending}
+        />
+      </div>
 
       <FormInput
         label="Email Address"
@@ -70,55 +73,12 @@ export function SignupForm() {
         />
       </div>
 
-      <FormInput
-        label="Medical License Number"
-        name="licenseNumber"
-        type="text"
-        required
-        placeholder="e.g., LIC-12345"
-        error={state?.errors?.licenseNumber}
-        disabled={isPending}
-      />
-
-      <FormSelect
-        label="Specialization"
-        name="specialization"
-        required
-        options={SPECIALIZATIONS}
-        error={state?.errors?.specialization}
-        disabled={isPending}
-      />
-
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <FormInput
-          label="Hospital / Clinic"
-          name="hospital"
-          type="text"
-          required
-          placeholder="City General Hospital"
-          error={state?.errors?.hospital}
-          disabled={isPending}
-        />
-
-        <FormInput
-          label="Years of Experience"
-          name="yearsExperience"
-          type="number"
-          required
-          min="0"
-          max="70"
-          placeholder="e.g., 5"
-          error={state?.errors?.yearsExperience}
-          disabled={isPending}
-        />
-      </div>
-
       <button
         type="submit"
         disabled={isPending}
-        className="w-full bg-purple-600 hover:bg-purple-700 disabled:bg-purple-300 text-white font-medium py-3 px-4 rounded-lg transition-colors duration-200 flex items-center justify-center"
+        className="w-full bg-purple-600 hover:bg-purple-700 disabled:bg-purple-300 text-white font-medium py-3 px-4 rounded-lg transition-colors duration-200 flex items-center justify-center cursor-pointer"
       >
-        {isPending ? "Creating Account..." : "Create Doctor Account"}
+        {isPending ? "Creating Account..." : "Create Specialist Account"}
       </button>
 
       <p className="text-center text-sm text-gray-600">
@@ -129,8 +89,7 @@ export function SignupForm() {
       </p>
 
       <p className="text-xs text-gray-500 text-center leading-relaxed">
-        By signing up, you agree that your account will be reviewed by our admin team.
-        You'll be notified once your account is verified.
+        By signing up, you can access your dashboard immediately and complete your profile credentials later.
       </p>
     </form>
   );
