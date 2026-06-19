@@ -29,8 +29,9 @@ export function ExpandableDoctorCard({ doctor, onApprove, onReject, onSuspend }:
         return <span className="bg-red-100 text-red-700 px-2 py-0.5 rounded-full text-xs font-medium flex items-center gap-1"><XCircle size={12} /> Rejected</span>;
       case "suspended":
         return <span className="bg-gray-100 text-gray-700 px-2 py-0.5 rounded-full text-xs font-medium flex items-center gap-1"><AlertCircle size={12} /> Suspended</span>;
+      case "pending_review":
       default:
-        return <span className="bg-yellow-100 text-yellow-700 px-2 py-0.5 rounded-full text-xs font-medium flex items-center gap-1"><Clock size={12} /> Pending</span>;
+        return <span className="bg-yellow-100 text-yellow-700 px-2 py-0.5 rounded-full text-xs font-medium flex items-center gap-1"><Clock size={12} /> Pending Review</span>;
     }
   };
 
@@ -66,7 +67,7 @@ export function ExpandableDoctorCard({ doctor, onApprove, onReject, onSuspend }:
           </div>
         </div>
         <div className="flex items-center gap-4 mt-4 sm:mt-0">
-          {getStatusBadge(doctor.verification_status)}
+          {getStatusBadge(doctor.profile_status)}
           <Button variant="ghost" size="sm" className="text-slate-400 hover:text-purple-600 hover:bg-purple-50 transition-colors rounded-full w-8 h-8 p-0">
             {isExpanded ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
           </Button>
@@ -166,7 +167,7 @@ export function ExpandableDoctorCard({ doctor, onApprove, onReject, onSuspend }:
             </div>
 
             <div className="flex w-full sm:w-auto gap-3">
-              {doctor.verification_status === "pending" && (
+              {doctor.profile_status === "pending_review" && (
                 <>
                   <Button 
                     variant="outline" 
@@ -185,7 +186,7 @@ export function ExpandableDoctorCard({ doctor, onApprove, onReject, onSuspend }:
                   </Button>
                 </>
               )}
-              {doctor.verification_status === "approved" && (
+              {doctor.profile_status === "approved" && (
                 <Button 
                   variant="outline" 
                   className="flex-1 sm:flex-none text-slate-600 border-slate-200 hover:bg-slate-50 rounded-xl font-semibold shadow-sm"
@@ -195,7 +196,7 @@ export function ExpandableDoctorCard({ doctor, onApprove, onReject, onSuspend }:
                   Suspend Account
                 </Button>
               )}
-              {(doctor.verification_status === "suspended" || doctor.verification_status === "rejected") && (
+              {(doctor.profile_status === "suspended" || doctor.profile_status === "rejected") && (
                 <Button 
                   className="flex-1 sm:flex-none bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white rounded-xl font-semibold shadow-md border-0"
                   onClick={handleApprove}

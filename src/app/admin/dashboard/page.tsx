@@ -8,7 +8,7 @@ export default async function AdminDashboard() {
     consultationsResult
   ] = await Promise.all([
     getOne<{ count: number }>('SELECT COUNT(*) as count FROM experts'),
-    getOne<{ count: number }>("SELECT COUNT(*) as count FROM experts WHERE verification_status = 'pending'"),
+    getOne<{ count: number }>("SELECT COUNT(*) as count FROM experts WHERE profile_status = 'pending_review'"),
     getOne<{ count: number }>("SELECT COUNT(*) as count FROM consultations")
   ]);
 

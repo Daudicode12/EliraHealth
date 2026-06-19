@@ -6,16 +6,16 @@ import { LayoutDashboard, Users, Calendar, LogOut, Menu, X, FileText, Clock, Use
 import { useState } from "react";
 
 const NAV = [
-  { href: "/doctor/dashboard", label: "Dashboard", icon: LayoutDashboard },
-  { href: "/doctor/patients", label: "My Patients", icon: Users },
-  { href: "/doctor/appointments", label: "Appointments", icon: Calendar },
-  { href: "/doctor/consultations", label: "Consultations", icon: Stethoscope },
-  { href: "/doctor/medical-records", label: "Medical Records", icon: FileText },
-  { href: "/doctor/availability", label: "Availability", icon: Clock },
-  { href: "/doctor/profile", label: "My Profile", icon: UserCog },
+  { href: "/specialist/dashboard", label: "Dashboard", icon: LayoutDashboard },
+  { href: "/specialist/patients", label: "My Patients", icon: Users, isLockable: true },
+  { href: "/specialist/appointments", label: "Appointments", icon: Calendar, isLockable: true },
+  { href: "/specialist/consultations", label: "Consultations", icon: Stethoscope, isLockable: true },
+  { href: "/specialist/medical-records", label: "Medical Records", icon: FileText, isLockable: true },
+  { href: "/specialist/availability", label: "Availability", icon: Clock, isLockable: true },
+  { href: "/specialist/profile", label: "My Profile", icon: UserCog },
 ];
 
-export function DoctorSidebar({ logoutAction }: { logoutAction: () => void }) {
+export function DoctorSidebar({ logoutAction, profileStatus = "approved" }: { logoutAction: () => void; profileStatus?: string }) {
   const pathname = usePathname();
   const [isOpen, setIsOpen] = useState(false);
 
@@ -56,23 +56,33 @@ export function DoctorSidebar({ logoutAction }: { logoutAction: () => void }) {
 
         <nav className="flex-1 flex flex-col gap-1.5 p-4 overflow-y-auto mt-4 lg:mt-0">
           <p className="px-3 text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Clinical Workspace</p>
-          {NAV.map(({ href, label, icon: Icon }) => {
+          {NAV.map(({ href, label, icon: Icon, isLockable }) => {
             const isActive = pathname === href || pathname.startsWith(`${href}/`);
+            const isLocked = isLockable && profileStatus !== 'approved';
+            
             return (
               <Link
                 key={href}
-                href={href}
+                href={isLocked ? "/specialist/dashboard" : href}
                 onClick={() => setIsOpen(false)}
                 className={`
-                  flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200
+                  flex items-center justify-between px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200
                   ${isActive 
                     ? "bg-emerald-600/10 text-emerald-400 border border-emerald-500/20 shadow-sm" 
                     : "hover:bg-white/5 hover:text-white"
                   }
+                  ${isLocked ? "opacity-60 cursor-not-allowed" : ""}
                 `}
               >
-                <Icon size={18} className={isActive ? "text-emerald-400" : "text-slate-400"} />
-                {label}
+                <div className="flex items-center gap-3">
+                  <Icon size={18} className={isActive ? "text-emerald-400" : "text-slate-400"} />
+                  <span>{label}</span>
+                </div>
+                {isLocked && (
+                  <span className="text-xs text-slate-500 font-semibold" title="Requires verification">
+                    🔒
+                  </span>
+                )}
               </Link>
             );
           })}
