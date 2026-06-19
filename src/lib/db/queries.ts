@@ -351,3 +351,54 @@ export async function getPatientRecord(patientId: string): Promise<(Profile & { 
     consultations: consultations as unknown as Consultation[]
   };
 }
+
+/**
+ * Create specialist account directly from admin
+ * Sets verification_status = 'approved' immediately (no pending approval)
+ */
+export async function createSpecialistByAdmin(data: {
+  userId: string;
+  email: string;
+  firstName: string;
+  lastName: string;
+  phoneNumber: string;
+  specialties: string[];
+  yearsOfExperience: number;
+  credentials: string;
+  hospital: string;
+  bio?: string;
+  hourlyRate: number;
+}): Promise<void> {
+  // Create in profiles table
+  await createProfile({
+    id: data.userId,
+    email: data.email,
+    first_name: data.firstName,
+    last_name: data.lastName,
+    phone_number: data.phoneNumber,
+    role: 'expert',
+  });
+
+  // Create in experts table
+  await createExpert({
+    user_id: data.userId,
+    display_name: `${data.firstName} ${data.lastName}`,
+    specialties: JSON.stringify(data.specialties),
+    license_number: data.credentials,
+    years_of_experience: data.yearsOfExperience,
+    hourly_rate: data.hourlyRate,
+    hospital_name: data.hospital,
+    bio: data.bio,
+  });
+
+  // Set verification_status = 'approved' immediately
+  const expert = await getExpertByUserId(data.userId);
+  if (expert) {
+    await updateExpert(expert.id, {
+      verification_status: 'approved',
+      verified_at: new Date().toISOString(),
+      is_available: 1
+    });
+  }
+}
+
