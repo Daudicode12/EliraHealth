@@ -27,18 +27,39 @@ export async function middleware(request: NextRequest) {
     const decoded = JSON.parse(Buffer.from(payloadStr, "base64").toString("utf-8"));
     const { role, status } = decoded;
 
-    // Specialist Protection
-    if (role === "expert" && pathname.startsWith("/doctor")) {
-      if (status === "pending") {
-        return NextResponse.redirect(new URL("/verification-pending", request.url));
+    // Specialist Route Protection
+    if (pathname.startsWith("/specialist")) {
+      if (role !== "expert") {
+        return NextResponse.redirect(new URL("/login", request.url));
       }
-      if (status === "rejected") {
-        return NextResponse.redirect(new URL("/application-rejected", request.url));
+
+      if (status === "profile_incomplete") {
+        // Allow only /specialist/dashboard, /specialist/profile/*, and /specialist/notifications
+        const isAllowed = 
+          pathname === "/specialist/dashboard" || 
+          pathname.startsWith("/specialist/profile/") || 
+          pathname === "/specialist/notifications";
+        if (!isAllowed) {
+          return NextResponse.redirect(new URL("/specialist/dashboard", request.url));
+        }
+      } else if (status === "pending_review") {
+        // Allow only /specialist/dashboard, /specialist/profile, and /specialist/notifications
+        const isAllowed = 
+          pathname === "/specialist/dashboard" || 
+          pathname === "/specialist/profile" || 
+          pathname === "/specialist/notifications";
+        if (!isAllowed) {
+          return NextResponse.redirect(new URL("/specialist/dashboard", request.url));
+        }
+      } else if (status === "rejected") {
+        if (pathname !== "/specialist/application-rejected") {
+          return NextResponse.redirect(new URL("/specialist/application-rejected", request.url));
+        }
+      } else if (status === "suspended") {
+        if (pathname !== "/specialist/account-suspended") {
+          return NextResponse.redirect(new URL("/specialist/account-suspended", request.url));
+        }
       }
-      if (status === "suspended") {
-        return NextResponse.redirect(new URL("/account-suspended", request.url));
-      }
-      // If approved, allow access
     }
 
     // Admin Protection

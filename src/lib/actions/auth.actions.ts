@@ -29,21 +29,19 @@ export async function loginAction(formData: FormData) {
     } else if (profile.role === "expert") {
       try {
         const expert = await getExpertByUserId(profile.id);
-        status = expert?.verification_status || 'pending';
+        status = expert?.profile_status || 'profile_incomplete';
         
-        if (status === 'approved') {
-          targetPath = "/doctor/dashboard";
-        } else if (status === 'rejected') {
-          targetPath = "/application-rejected";
+        if (status === 'rejected') {
+          targetPath = "/specialist/application-rejected";
         } else if (status === 'suspended') {
-          targetPath = "/account-suspended";
+          targetPath = "/specialist/account-suspended";
         } else {
-          targetPath = "/verification-pending";
+          targetPath = "/specialist/dashboard";
         }
       } catch (error) {
         console.error("Expert check error:", error);
-        targetPath = "/verification-pending";
-        status = 'pending';
+        targetPath = "/specialist/dashboard";
+        status = 'profile_incomplete';
       }
     }
 

@@ -12,8 +12,20 @@ export async function loginUser(formData: FormData) {
 
   if (!profile) return { error: "Invalid credentials" };
 
-  // Mock verification
-  const token = `mock-token-${profile.id}`;
+  // Mock verification with profile_status
+  let status = 'active';
+  if (profile.role === "expert") {
+    const expert = await getExpertByUserId(profile.id);
+    status = expert?.profile_status || 'profile_incomplete';
+  }
+
+  const payload = Buffer.from(JSON.stringify({
+    id: profile.id,
+    role: profile.role,
+    status: status
+  })).toString('base64');
+
+  const token = `mock-jwt-${payload}`;
   (await cookies()).set("auth-token", token, {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
@@ -23,11 +35,9 @@ export async function loginUser(formData: FormData) {
 
   if (profile.role === "admin") redirect("/admin/dashboard");
   if (profile.role === "expert") {
-    const expert = await getExpertByUserId(profile.id);
-    if (expert?.verification_status === 'approved') redirect("/doctor/dashboard");
-    if (expert?.verification_status === 'rejected') redirect("/application-rejected");
-    if (expert?.verification_status === 'suspended') redirect("/account-suspended");
-    redirect("/verification-pending");
+    if (status === 'rejected') redirect("/specialist/application-rejected");
+    if (status === 'suspended') redirect("/specialist/account-suspended");
+    redirect("/specialist/dashboard");
   }
   redirect("/patient/dashboard");
 }
