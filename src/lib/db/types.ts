@@ -31,6 +31,8 @@ export interface Expert {
   hourly_rate: number;
   currency?: string;
   verification_status: 'pending' | 'approved' | 'rejected' | 'suspended';
+  profile_status: 'profile_incomplete' | 'pending_review' | 'approved' | 'rejected' | 'suspended';
+  submitted_for_review_at?: string | null;
   verified_at?: string | null;
   verified_by?: string | null;
   rejection_reason?: string | null;

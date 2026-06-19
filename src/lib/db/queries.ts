@@ -57,20 +57,20 @@ export async function createExpert(data: Partial<Expert>): Promise<void> {
   const { 
     user_id, display_name, specialties, license_number, 
     medical_council_number, practicing_certificate_url, hospital_name,
-    years_of_experience, hourly_rate 
+    years_of_experience, hourly_rate, profile_status
   } = data;
   
   await executeAction(
     `INSERT INTO experts (
       user_id, display_name, specialties, license_number, 
       medical_council_number, practicing_certificate_url, hospital_name,
-      years_of_experience, hourly_rate, verification_status
+      years_of_experience, hourly_rate, verification_status, profile_status
     ) 
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending')`,
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?)`,
     [
       user_id, display_name, specialties, license_number, 
       medical_council_number, practicing_certificate_url, hospital_name,
-      years_of_experience, hourly_rate
+      years_of_experience, hourly_rate, profile_status || 'profile_incomplete'
     ]
   );
 }
@@ -84,13 +84,14 @@ export async function getExpertByUserId(userId: string): Promise<Expert | null> 
 }
 
 export async function getExpertsByStatus(status: 'pending' | 'approved' | 'rejected' | 'suspended'): Promise<(Expert & { email: string; phone_number: string })[]> {
+  const dbStatus = status === 'pending' ? 'pending_review' : status;
   return await getMany<Expert & { email: string; phone_number: string }>(
     `SELECT e.*, p.email, p.phone_number
      FROM experts e 
      JOIN profiles p ON e.user_id = p.id 
-     WHERE e.verification_status = ? 
+     WHERE e.profile_status = ? 
      ORDER BY e.created_at DESC`,
-    [status]
+    [dbStatus]
   );
 }
 
@@ -99,7 +100,7 @@ export async function getPendingExperts(): Promise<(Expert & { email: string; ph
 }
 
 export async function getVerifiedExperts(filters?: { specialty?: string }): Promise<Expert[]> {
-  let sql = "SELECT * FROM experts WHERE verification_status = 'approved' AND is_available = 1";
+  let sql = "SELECT * FROM experts WHERE profile_status = 'approved' AND is_available = 1";
   const args: unknown[] = [];
   
   if (filters?.specialty) {
@@ -130,7 +131,8 @@ export async function createNotification(userId: string, message: string, type: 
 export async function approveExpert(expertId: string, adminId: string): Promise<void> {
   await executeAction(
     `UPDATE experts 
-     SET verification_status = 'approved', 
+     SET profile_status = 'approved', 
+         verification_status = 'approved',
          verified_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now'),
          verified_by = ?
      WHERE id = ?`, 
@@ -139,14 +141,15 @@ export async function approveExpert(expertId: string, adminId: string): Promise<
   
   const expert = await getExpertById(expertId);
   if (expert) {
-    await createNotification(expert.user_id, "Congratulations! Your specialist account has been approved.", "success");
+    await createNotification(expert.user_id, "Congratulations!\n\nYour specialist profile has been approved.\n\nYou now have full access to Elira Health.", "success");
   }
 }
 
 export async function rejectExpert(expertId: string, reason: string): Promise<void> {
   await executeAction(
     `UPDATE experts 
-     SET verification_status = 'rejected', 
+     SET profile_status = 'rejected', 
+         verification_status = 'rejected',
          rejection_reason = ? 
      WHERE id = ?`, 
     [reason, expertId]
@@ -154,21 +157,22 @@ export async function rejectExpert(expertId: string, reason: string): Promise<vo
   
   const expert = await getExpertById(expertId);
   if (expert) {
-    await createNotification(expert.user_id, "Your specialist application was not approved.", "error");
+    await createNotification(expert.user_id, `Your application was not approved.\n\nReason:\n${reason}`, "error");
   }
 }
 
 export async function suspendExpert(expertId: string): Promise<void> {
   await executeAction(
     `UPDATE experts 
-     SET verification_status = 'suspended' 
+     SET profile_status = 'suspended',
+         verification_status = 'suspended' 
      WHERE id = ?`, 
     [expertId]
   );
   
   const expert = await getExpertById(expertId);
   if (expert) {
-    await createNotification(expert.user_id, "Your specialist account has been suspended.", "warning");
+    await createNotification(expert.user_id, "Your specialist account has been suspended. Please contact support.", "warning");
   }
 }
 
@@ -184,8 +188,8 @@ export async function updateExpert(id: string, data: Partial<Expert>): Promise<v
 }
 
 export async function getExpertStatusCounts(): Promise<Record<string, number>> {
-  const counts = await getMany<{ verification_status: string; count: number }>(
-    'SELECT verification_status, COUNT(*) as count FROM experts GROUP BY verification_status'
+  const counts = await getMany<{ profile_status: string; count: number }>(
+    'SELECT profile_status, COUNT(*) as count FROM experts GROUP BY profile_status'
   );
   
   const result: Record<string, number> = {
@@ -196,7 +200,11 @@ export async function getExpertStatusCounts(): Promise<Record<string, number>> {
   };
   
   counts.forEach(row => {
-    result[row.verification_status] = row.count;
+    if (row.profile_status === 'pending_review') {
+      result.pending = row.count;
+    } else if (row.profile_status in result) {
+      result[row.profile_status] = row.count;
+    }
   });
   
   return result;
@@ -391,10 +399,11 @@ export async function createSpecialistByAdmin(data: {
     bio: data.bio,
   });
 
-  // Set verification_status = 'approved' immediately
+  // Set profile_status & verification_status = 'approved' immediately
   const expert = await getExpertByUserId(data.userId);
   if (expert) {
     await updateExpert(expert.id, {
+      profile_status: 'approved',
       verification_status: 'approved',
       verified_at: new Date().toISOString(),
       is_available: 1
