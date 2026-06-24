@@ -57,20 +57,29 @@ export interface ExpertAvailability {
 
 export interface Consultation {
   id: string;
-  client_id: string;
-  expert_id: string;
-  scheduled_at: string | null;
+  appointment_id: string;
+  patient_id: string;
+  specialist_id: string;
+  status: 'scheduled' | 'in_progress' | 'completed' | 'cancelled';
+  started_at: string | null;
+  ended_at: string | null;
+  created_at: string;
+  updated_at: string;
+  
+  // Backwards compatibility properties (deprecated)
+  assessment?: string | null;
+  chief_complaint?: string | null;
+  client_id?: string;
+  expert_id?: string;
+  scheduled_at?: string | null;
   duration_minutes?: number;
-  status: 'pending' | 'confirmed' | 'in_progress' | 'completed' | 'cancelled' | 'no_show';
-  issue_description: string | null;
-  issue_category: string | null;
+  issue_description?: string | null;
+  issue_category?: string | null;
   is_ai_matched?: number;
   ai_match_request_id?: string | null;
   meeting_url?: string | null;
   notes?: string | null;
   cancellation_reason?: string | null;
-  created_at: string;
-  updated_at: string;
 }
 
 export interface ConsultationMessage {
