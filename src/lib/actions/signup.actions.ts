@@ -2,7 +2,8 @@
 "use server";
 
 import { redirect } from "next/navigation";
-import { createProfile, createExpert } from "@/lib/db/queries";
+import { cookies } from "next/headers";
+import { createProfile, createExpert, getProfileByEmail } from "@/lib/db/queries";
 
 export type SignupState = {
   success?: boolean;
@@ -30,8 +31,12 @@ export async function signupAction(prevState: SignupState | null, formData: Form
     return { success: false, errors };
   }
 
-  let success = false;
   try {
+    const existingProfile = await getProfileByEmail(email);
+    if (existingProfile) {
+      return { success: false, message: "This email is already registered. Please sign in instead." };
+    }
+
     const userId = crypto.randomUUID();
     
     await createProfile({
@@ -49,15 +54,28 @@ export async function signupAction(prevState: SignupState | null, formData: Form
       profile_status: 'profile_incomplete',
     });
 
-    success = true;
+    // Set auth token cookie with encoded user data for Edge middleware
+    const payload = Buffer.from(JSON.stringify({
+      id: userId,
+      role: 'expert',
+      status: 'profile_incomplete'
+    })).toString('base64');
+
+    const token = `mock-jwt-${payload}`;
+    const cookieStore = await cookies();
+    cookieStore.set("auth-token", token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      maxAge: 60 * 60 * 24 * 7, // 1 week
+      path: "/",
+    });
+
   } catch (error) {
     console.error("Signup error:", error);
     return { success: false, message: "Database error. Please try again." };
   }
 
-  if (success) {
-    redirect("/specialist/dashboard");
-  }
-
-  return { success: true };
+  // Redirect after successfully setting cookie
+  redirect("/specialist/dashboard");
 }
