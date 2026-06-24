@@ -4,7 +4,7 @@ import { getSpecialistDashboardStats } from "@/lib/db/specialistQueries";
 import { AppointmentService } from "@/services/appointment.service";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-import { Users, FileText, CalendarCheck, Clock, Stethoscope, Banknote, ShieldCheck, Sparkles, Lock } from "lucide-react";
+import { Users, FileText, CalendarCheck, Clock, Stethoscope, ShieldCheck, Sparkles, Lock } from "lucide-react";
 
 export default async function DoctorDashboard() {
   const token = (await cookies()).get("auth-token")?.value;
@@ -283,20 +283,8 @@ export default async function DoctorDashboard() {
           </div>
         </div>
 
-        {/* Sidebar Widgets (Earnings & Messages) */}
+        {/* Sidebar Widgets (Messages) */}
         <div className="space-y-6">
-          <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-            <h2 className="text-lg font-bold text-slate-900 mb-6 flex items-center gap-2">
-              <Banknote className="text-emerald-500" />
-              Earnings
-            </h2>
-            <div className="text-center py-6 bg-slate-50 rounded-xl">
-              <p className="text-xs text-slate-500 font-semibold uppercase tracking-wider mb-1">This Month</p>
-              <h3 className="text-3xl font-bold text-slate-900">KES 0.00</h3>
-              <p className="text-xs text-emerald-600 font-medium mt-2">Available in future update</p>
-            </div>
-          </div>
-
           <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-sm font-bold text-slate-900 uppercase tracking-wider">Recent Messages</h2>

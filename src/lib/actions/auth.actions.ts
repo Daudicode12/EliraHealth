@@ -22,7 +22,7 @@ export async function loginAction(formData: FormData) {
   // Set auth token cookie with encoded user data for Edge middleware
   try {
     let status = 'active';
-    let targetPath = "/patient/dashboard";
+    let targetPath = "/user/dashboard";
     
     if (profile.role === "admin") {
       targetPath = "/admin/dashboard";
@@ -35,12 +35,14 @@ export async function loginAction(formData: FormData) {
           targetPath = "/specialist/application-rejected";
         } else if (status === 'suspended') {
           targetPath = "/specialist/account-suspended";
+        } else if (status === 'profile_incomplete') {
+          targetPath = "/specialist/profile/complete";
         } else {
           targetPath = "/specialist/dashboard";
         }
       } catch (error) {
         console.error("Expert check error:", error);
-        targetPath = "/specialist/dashboard";
+        targetPath = "/specialist/profile/complete";
         status = 'profile_incomplete';
       }
     }

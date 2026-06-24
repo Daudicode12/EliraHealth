@@ -1,15 +1,15 @@
-// src/components/forms/SignupForm.tsx
+// src/components/forms/UserSignupForm.tsx
 "use client";
 
 import { useActionState } from "react";
 import { FormInput } from "@/components/forms/FormInput";
-import { signupAction, SignupState } from "@/lib/actions/signup.actions";
+import { signupUserAction, SignupState } from "@/lib/actions/signup-user.actions";
 import Link from "next/link";
 
 const initialState: SignupState = {};
 
-export function SignupForm() {
-  const [state, formAction, isPending] = useActionState(signupAction, initialState);
+export function UserSignupForm() {
+  const [state, formAction, isPending] = useActionState(signupUserAction, initialState);
 
   return (
     <form action={formAction} className="space-y-4">
@@ -46,7 +46,7 @@ export function SignupForm() {
         name="email"
         type="email"
         required
-        placeholder="jane.smith@hospital.com"
+        placeholder="jane.smith@example.com"
         error={state?.errors?.email}
         disabled={isPending}
       />
@@ -78,7 +78,7 @@ export function SignupForm() {
         disabled={isPending}
         className="w-full bg-gradient-to-r from-brand to-brand-deep hover:shadow-lg hover:shadow-brand/25 disabled:opacity-60 text-white font-medium py-3 px-4 rounded-lg transition-all duration-200 flex items-center justify-center cursor-pointer"
       >
-        {isPending ? "Creating Account..." : "Create Specialist Account"}
+        {isPending ? "Creating Account..." : "Create Account"}
       </button>
 
       <p className="text-center text-sm text-gray-600">
@@ -89,7 +89,7 @@ export function SignupForm() {
       </p>
 
       <p className="text-xs text-gray-500 text-center leading-relaxed">
-        By signing up, you will be guided to complete your profile credentials to submit your application for verification.
+        By signing up, you agree to our Terms of Service and Privacy Policy. You can start tracking your health immediately.
       </p>
     </form>
   );

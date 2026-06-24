@@ -18,7 +18,7 @@ export function getTursoClient(): Client {
   if (client) return client;
 
   // Try both prefixed and non-prefixed as Next.js can be picky
-  let url = process.env.TURSO_CONNECTION_URL || process.env.NEXT_PUBLIC_TURSO_CONNECTION_URL;
+  let url = process.env.TURSO_CONNECTION_URL || process.env.NEXT_PUBLIC_TURSO_CONNECTION_URL || process.env.TURSO_DATABASE_URL || process.env.NEXT_PUBLIC_TURSO_DATABASE_URL;
   let authToken = process.env.TURSO_AUTH_TOKEN || process.env.NEXT_PUBLIC_TURSO_AUTH_TOKEN;
 
   // Clean values (remove quotes if any, and trim)

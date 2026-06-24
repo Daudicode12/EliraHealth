@@ -10,7 +10,7 @@ import { revalidatePath } from "next/cache";
 
 export async function bookConsultation(data: Partial<Consultation>) {
   await createConsultation(data);
-  revalidatePath("/patient/dashboard");
+  revalidatePath("/user/dashboard");
   return { success: true };
 }
 

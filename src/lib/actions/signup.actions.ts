@@ -56,7 +56,7 @@ export async function signupAction(prevState: SignupState | null, formData: Form
   }
 
   if (success) {
-    redirect("/specialist/dashboard");
+    redirect("/specialist/profile/complete");
   }
 
   return { success: true };

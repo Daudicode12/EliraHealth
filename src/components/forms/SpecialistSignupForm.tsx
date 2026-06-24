@@ -1,15 +1,15 @@
-// src/components/forms/SignupForm.tsx
+// src/components/forms/SpecialistSignupForm.tsx
 "use client";
 
 import { useActionState } from "react";
 import { FormInput } from "@/components/forms/FormInput";
-import { signupAction, SignupState } from "@/lib/actions/signup.actions";
+import { signupSpecialistAction, SignupState } from "@/lib/actions/signup-specialist.actions";
 import Link from "next/link";
 
 const initialState: SignupState = {};
 
-export function SignupForm() {
-  const [state, formAction, isPending] = useActionState(signupAction, initialState);
+export function SpecialistSignupForm() {
+  const [state, formAction, isPending] = useActionState(signupSpecialistAction, initialState);
 
   return (
     <form action={formAction} className="space-y-4">

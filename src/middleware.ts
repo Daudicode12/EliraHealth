@@ -4,12 +4,15 @@ export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   // Public routes and API routes
+  const publicPaths = [
+    "/api", "/_next", "/favicon.ico",
+    "/signup", "/login",
+    "/about", "/services", "/faq", "/contact",
+    "/images",
+  ];
   if (
-    pathname.startsWith("/api") || 
-    pathname.startsWith("/_next") || 
-    pathname === "/favicon.ico" ||
-    pathname === "/signup" ||
-    pathname === "/login"
+    pathname === "/" ||
+    publicPaths.some((p) => pathname === p || pathname.startsWith(p + "/"))
   ) {
     return NextResponse.next();
   }
@@ -34,13 +37,10 @@ export async function middleware(request: NextRequest) {
       }
 
       if (status === "profile_incomplete") {
-        // Allow only /specialist/dashboard, /specialist/profile/*, and /specialist/notifications
-        const isAllowed = 
-          pathname === "/specialist/dashboard" || 
-          pathname.startsWith("/specialist/profile/") || 
-          pathname === "/specialist/notifications";
+        // Allow only /specialist/profile/complete
+        const isAllowed = pathname === "/specialist/profile/complete";
         if (!isAllowed) {
-          return NextResponse.redirect(new URL("/specialist/dashboard", request.url));
+          return NextResponse.redirect(new URL("/specialist/profile/complete", request.url));
         }
       } else if (status === "pending_review") {
         // Allow only /specialist/dashboard, /specialist/profile, and /specialist/notifications
@@ -67,8 +67,8 @@ export async function middleware(request: NextRequest) {
       return NextResponse.redirect(new URL("/login", request.url));
     }
 
-    // Patient Protection
-    if (pathname.startsWith("/patient") && role !== "user") {
+    // User Route Protection
+    if (pathname.startsWith("/user") && role !== "user") {
       return NextResponse.redirect(new URL("/login", request.url));
     }
 
