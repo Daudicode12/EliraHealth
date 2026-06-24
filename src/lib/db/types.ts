@@ -23,6 +23,8 @@ export interface Expert {
   bio?: string | null;
   avatar_url?: string | null;
   specialties: string; // JSON string
+  sub_specialties?: string | null; // JSON string
+  languages?: string | null; // JSON string
   license_number: string | null;
   medical_council_number?: string | null;
   practicing_certificate_url?: string | null;

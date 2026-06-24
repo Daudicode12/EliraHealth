@@ -273,6 +273,8 @@ CREATE TABLE IF NOT EXISTS experts (
   bio TEXT,
   avatar_url TEXT,
   specialties TEXT DEFAULT '[]', -- JSON list of strings
+  sub_specialties TEXT DEFAULT '[]', -- JSON list of strings
+  languages TEXT DEFAULT '[]', -- JSON list of strings
   license_number TEXT,
   medical_council_number TEXT,
   practicing_certificate_url TEXT,
