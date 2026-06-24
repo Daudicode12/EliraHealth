@@ -1,31 +1,61 @@
-import { NextRequest, NextResponse } from "next/server";
-import { requireSpecialist } from "@/lib/auth/specialist";
-import { executeAction } from "@/lib/db/client";
+import { NextRequest, NextResponse } from 'next/server';
+import { ConsultationService } from '@/services/consultation.service';
+import { getExpertByUserId } from '@/lib/db/queries';
+import { z } from 'zod';
+
+const completeSchema = z.object({
+  chief_complaint: z.string().min(1, 'Chief complaint is required'),
+  symptoms: z.string().optional(),
+  assessment: z.string().min(1, 'Assessment is required'),
+  recommendations: z.string().optional(),
+  follow_up_required: z.union([z.boolean(), z.number()]).optional(),
+  follow_up_date: z.string().optional(),
+});
+
+function getUserIdFromToken(token: string | undefined): string | null {
+  if (!token) return null;
+  let userId = token.replace('mock-token-', '');
+  if (token.startsWith('mock-jwt-')) {
+    try {
+      const decoded = JSON.parse(Buffer.from(token.replace('mock-jwt-', ''), 'base64').toString('utf-8'));
+      userId = decoded.id;
+    } catch(e) { return null; }
+  }
+  return userId || null;
+}
 
 export async function PATCH(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const auth = await requireSpecialist(req);
-  if (auth instanceof NextResponse) return auth;
-
   try {
+    const token = req.cookies.get('auth-token')?.value;
+    const userId = getUserIdFromToken(token);
+    if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+    const expert = await getExpertByUserId(userId);
+    if (!expert) return NextResponse.json({ error: 'Specialist not found' }, { status: 404 });
+
     const { id } = await params;
-    
-    // Explicitly update only if it belongs to this specialist
-    const result = await executeAction(
-      `UPDATE consultations SET status = 'completed', updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now') 
-       WHERE id = ? AND expert_id = ?`,
-      [id, auth.specialistId]
-    );
+    const body = await req.json();
+    const validatedNotes = completeSchema.parse(body);
 
-    if (result.rowsAffected === 0) {
-      return NextResponse.json({ success: false, error: "Consultation not found or access denied" }, { status: 404 });
-    }
+    const notesData = {
+      ...validatedNotes,
+      follow_up_required: validatedNotes.follow_up_required ? 1 : 0,
+    };
 
-    return NextResponse.json({ success: true, message: "Consultation marked as completed" });
+    await ConsultationService.completeConsultation(id, expert.id, notesData);
+
+    return NextResponse.json({ success: true, message: 'Consultation completed' });
   } catch (error) {
-    console.error("Complete Consultation Error:", error);
-    return NextResponse.json({ success: false, error: "Internal Server Error" }, { status: 500 });
+    console.error('Complete Consultation Error:', error);
+    if (error instanceof z.ZodError) {
+      return NextResponse.json({ error: error.issues }, { status: 400 });
+    }
+    if (error instanceof Error) {
+      return NextResponse.json({ error: error.message }, { status: 400 });
+    }
+    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }
 }
