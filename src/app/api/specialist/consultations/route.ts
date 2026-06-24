@@ -1,52 +1,46 @@
-import { NextRequest, NextResponse } from "next/server";
-import { requireSpecialist } from "@/lib/auth/specialist";
-import { createConsultation, getExpertConsultations } from "@/lib/db/queries";
-import { ensurePatientAssignment } from "@/lib/db/specialistQueries";
-import { CreateConsultationSchema } from "@/lib/types/specialist";
+import { NextRequest, NextResponse } from 'next/server';
+import { ConsultationService } from '@/services/consultation.service';
+import { getExpertByUserId } from '@/lib/db/queries';
 
-export async function GET(req: NextRequest) {
-  const auth = await requireSpecialist(req);
-  if (auth instanceof NextResponse) return auth;
-
-  try {
-    const consultations = await getExpertConsultations(auth.specialistId);
-    return NextResponse.json({ success: true, data: consultations });
-  } catch (error) {
-    console.error("Fetch Consultations Error:", error);
-    return NextResponse.json({ success: false, error: "Failed to fetch consultations" }, { status: 500 });
+function getUserIdFromToken(token: string | undefined): string | null {
+  if (!token) return null;
+  let userId = token.replace('mock-token-', '');
+  if (token.startsWith('mock-jwt-')) {
+    try {
+      const decoded = JSON.parse(Buffer.from(token.replace('mock-jwt-', ''), 'base64').toString('utf-8'));
+      userId = decoded.id;
+    } catch(e) { return null; }
   }
+  return userId || null;
 }
 
-export async function POST(req: NextRequest) {
-  const auth = await requireSpecialist(req);
-  if (auth instanceof NextResponse) return auth;
-
+export async function GET(req: NextRequest) {
   try {
-    const body = await req.json();
-    const validatedData = CreateConsultationSchema.parse(body);
+    const token = req.cookies.get('auth-token')?.value;
+    const userId = getUserIdFromToken(token);
+    if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-    // Verify the specialist is booking for themselves
-    if (validatedData.specialist_id !== auth.specialistId) {
-      return NextResponse.json({ success: false, error: "Cannot book consultation for another specialist" }, { status: 403 });
+    const expert = await getExpertByUserId(userId);
+    if (!expert) return NextResponse.json({ error: 'Specialist not found' }, { status: 404 });
+
+    const { searchParams } = new URL(req.url);
+    const status = searchParams.get('status') || 'upcoming';
+
+    let consultations;
+    switch (status) {
+      case 'in_progress':
+        consultations = await ConsultationService.getInProgressConsultations(expert.id);
+        break;
+      case 'completed':
+        consultations = await ConsultationService.getCompletedConsultations(expert.id);
+        break;
+      default:
+        consultations = await ConsultationService.getUpcomingConsultations(expert.id);
     }
 
-    // Ensure they are assigned
-    await ensurePatientAssignment(auth.specialistId, validatedData.patient_id);
-
-    const consultationId = await createConsultation({
-      client_id: validatedData.patient_id,
-      expert_id: auth.specialistId,
-      scheduled_at: validatedData.scheduled_at,
-      issue_category: validatedData.issue_category,
-      issue_description: validatedData.issue_description,
-    });
-
-    return NextResponse.json({ success: true, data: { id: consultationId } }, { status: 201 });
-  } catch (error: any) {
-    console.error("Create Consultation Error:", error);
-    if (error.issues) {
-      return NextResponse.json({ success: false, error: "Validation failed", details: error.issues }, { status: 400 });
-    }
-    return NextResponse.json({ success: false, error: "Internal Server Error" }, { status: 500 });
+    return NextResponse.json(consultations);
+  } catch (error) {
+    console.error('Get Consultations Error:', error);
+    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }
 }
