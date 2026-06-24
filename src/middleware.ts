@@ -34,9 +34,10 @@ export async function middleware(request: NextRequest) {
       }
 
       if (status === "profile_incomplete") {
-        // Allow only /specialist/dashboard, /specialist/profile/*, and /specialist/notifications
+        // Allow only /specialist/dashboard, /specialist/profile, and /specialist/notifications
         const isAllowed = 
           pathname === "/specialist/dashboard" || 
+          pathname === "/specialist/profile" || 
           pathname.startsWith("/specialist/profile/") || 
           pathname === "/specialist/notifications";
         if (!isAllowed) {
