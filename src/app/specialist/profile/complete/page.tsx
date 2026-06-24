@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { Stethoscope, Award, FileCheck, CheckCircle2 } from "lucide-react";
 import { z } from "zod";
+import { CompleteProfileForm } from "./CompleteProfileForm";
 
 // Zod Schema for validation
 const completeProfileSchema = z.object({
@@ -109,7 +110,7 @@ export default async function CompleteProfilePage() {
     } catch (err: any) {
       // In Server Components/Actions, we can throw or handle it
       console.error("Validation failed:", err.errors);
-      return; // Or we can throw an error to show in form
+      return { success: false, error: "Validation failed. Please check all fields." };
     }
 
     // 1. Update Profile (phone number)
@@ -168,189 +169,7 @@ export default async function CompleteProfilePage() {
         </div>
       </div>
 
-      {/* Profile Form */}
-      <form action={handleSubmit} className="bg-white border border-slate-200 rounded-2xl p-8 shadow-sm space-y-6">
-        
-        {/* Section 1: Basic Info */}
-        <div>
-          <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2 border-b pb-2 mb-4">
-            <CheckCircle2 size={18} className="text-purple-600" />
-            1. Clinical Identity
-          </h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-1.5">
-              <label className="text-sm font-semibold text-slate-700">Display Name (Dr. First Last)</label>
-              <input
-                type="text"
-                name="displayName"
-                defaultValue={doctor.display_name || ""}
-                required
-                className="w-full px-4 py-2 border border-slate-200 rounded-xl shadow-sm outline-none focus:border-purple-500 focus:ring-2 focus:ring-purple-100 transition-all text-sm"
-                placeholder="Dr. Jane Smith"
-              />
-            </div>
-            <div className="space-y-1.5">
-              <label className="text-sm font-semibold text-slate-700">Phone Number</label>
-              <input
-                type="text"
-                name="phoneNumber"
-                required
-                className="w-full px-4 py-2 border border-slate-200 rounded-xl shadow-sm outline-none focus:border-purple-500 focus:ring-2 focus:ring-purple-100 transition-all text-sm"
-                placeholder="+254712345678"
-              />
-            </div>
-            <div className="space-y-1.5 md:col-span-2">
-              <label className="text-sm font-semibold text-slate-700">Profile Photo URL</label>
-              <input
-                type="url"
-                name="profilePhoto"
-                defaultValue={doctor.avatar_url || ""}
-                className="w-full px-4 py-2 border border-slate-200 rounded-xl shadow-sm outline-none focus:border-purple-500 focus:ring-2 focus:ring-purple-100 transition-all text-sm"
-                placeholder="https://example.com/photo.jpg"
-              />
-            </div>
-          </div>
-        </div>
-
-        {/* Section 2: Specialties */}
-        <div>
-          <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2 border-b pb-2 mb-4">
-            <Award size={18} className="text-purple-600" />
-            2. Medical Specialties
-          </h2>
-          <div className="space-y-2">
-            <label className="text-sm font-semibold text-slate-700">Select Specialties (Choose one or more)</label>
-            <div className="flex flex-wrap gap-3">
-              {SPECIALTIES_OPTIONS.map((specialty) => (
-                <label
-                  key={specialty}
-                  className="flex items-center gap-2 px-3 py-2 border border-slate-200 rounded-xl hover:bg-slate-50 cursor-pointer text-sm font-medium transition-all"
-                >
-                  <input
-                    type="checkbox"
-                    name="specialties"
-                    value={specialty}
-                    className="accent-purple-600 rounded"
-                  />
-                  {specialty}
-                </label>
-              ))}
-            </div>
-          </div>
-        </div>
-
-        {/* Section 3: Credentials */}
-        <div>
-          <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2 border-b pb-2 mb-4">
-            <FileCheck size={18} className="text-purple-600" />
-            3. Verification & Credentials
-          </h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-1.5">
-              <label className="text-sm font-semibold text-slate-700">Medical License Number</label>
-              <input
-                type="text"
-                name="licenseNumber"
-                defaultValue={doctor.license_number || ""}
-                required
-                className="w-full px-4 py-2 border border-slate-200 rounded-xl shadow-sm outline-none focus:border-purple-500 focus:ring-2 focus:ring-purple-100 transition-all text-sm"
-                placeholder="e.g. LIC-98765"
-              />
-            </div>
-            <div className="space-y-1.5">
-              <label className="text-sm font-semibold text-slate-700">Medical Council Number</label>
-              <input
-                type="text"
-                name="medicalCouncilNumber"
-                defaultValue={doctor.medical_council_number || ""}
-                required
-                className="w-full px-4 py-2 border border-slate-200 rounded-xl shadow-sm outline-none focus:border-purple-500 focus:ring-2 focus:ring-purple-100 transition-all text-sm"
-                placeholder="e.g. MC-12345"
-              />
-            </div>
-            <div className="space-y-1.5">
-              <label className="text-sm font-semibold text-slate-700">Hospital / Clinic</label>
-              <input
-                type="text"
-                name="hospitalName"
-                defaultValue={doctor.hospital_name || ""}
-                required
-                className="w-full px-4 py-2 border border-slate-200 rounded-xl shadow-sm outline-none focus:border-purple-500 focus:ring-2 focus:ring-purple-100 transition-all text-sm"
-                placeholder="e.g. Nairobi Hospital"
-              />
-            </div>
-            <div className="space-y-1.5">
-              <label className="text-sm font-semibold text-slate-700">Practicing Certificate URL</label>
-              <input
-                type="url"
-                name="practicingCertificateUrl"
-                defaultValue={doctor.practicing_certificate_url || ""}
-                required
-                className="w-full px-4 py-2 border border-slate-200 rounded-xl shadow-sm outline-none focus:border-purple-500 focus:ring-2 focus:ring-purple-100 transition-all text-sm"
-                placeholder="https://example.com/certificate.pdf"
-              />
-            </div>
-            <div className="space-y-1.5">
-              <label className="text-sm font-semibold text-slate-700">Years of Experience</label>
-              <input
-                type="number"
-                name="yearsExperience"
-                defaultValue={doctor.years_of_experience || ""}
-                required
-                min="0"
-                className="w-full px-4 py-2 border border-slate-200 rounded-xl shadow-sm outline-none focus:border-purple-500 focus:ring-2 focus:ring-purple-100 transition-all text-sm"
-                placeholder="e.g. 8"
-              />
-            </div>
-            <div className="space-y-1.5">
-              <label className="text-sm font-semibold text-slate-700">Hourly Rate (KES)</label>
-              <input
-                type="number"
-                name="hourlyRate"
-                defaultValue={doctor.hourly_rate || ""}
-                required
-                min="0"
-                className="w-full px-4 py-2 border border-slate-200 rounded-xl shadow-sm outline-none focus:border-purple-500 focus:ring-2 focus:ring-purple-100 transition-all text-sm"
-                placeholder="e.g. 3000"
-              />
-            </div>
-          </div>
-        </div>
-
-        {/* Section 4: Biography */}
-        <div>
-          <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2 border-b pb-2 mb-4">
-            <Award size={18} className="text-purple-600" />
-            4. Clinical Biography
-          </h2>
-          <div className="space-y-1.5">
-            <label className="text-sm font-semibold text-slate-700">Bio (Optional)</label>
-            <textarea
-              name="bio"
-              rows={4}
-              defaultValue={doctor.bio || ""}
-              className="w-full px-4 py-2 border border-slate-200 rounded-xl shadow-sm outline-none focus:border-purple-500 focus:ring-2 focus:ring-purple-100 transition-all text-sm resize-none"
-              placeholder="Tell us about your medical background..."
-            />
-          </div>
-        </div>
-
-        {/* Submit Actions */}
-        <div className="flex gap-4 justify-end pt-4 border-t">
-          <a
-            href="/specialist/dashboard"
-            className="px-5 py-2.5 border border-slate-200 text-slate-600 hover:bg-slate-50 font-semibold rounded-xl transition-colors text-sm flex items-center justify-center"
-          >
-            Cancel
-          </a>
-          <button
-            type="submit"
-            className="px-5 py-2.5 bg-purple-600 hover:bg-purple-700 text-white font-semibold rounded-xl transition-colors text-sm shadow-sm flex items-center justify-center cursor-pointer"
-          >
-            Submit for Review
-          </button>
-        </div>
-      </form>
+      <CompleteProfileForm doctor={doctor} submitAction={handleSubmit} />
     </div>
   );
 }
