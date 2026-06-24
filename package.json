@@ -12,10 +12,13 @@
     "@base-ui/react": "^1.5.0",
     "@libsql/client": "^0.17.4",
     "@phosphor-icons/react": "^2.1.10",
+<<<<<<< HEAD
     "@react-email/components": "^1.0.12",
     "@react-email/render": "^2.0.9",
     "@supabase/ssr": "^0.10.3",
     "@supabase/supabase-js": "^2.106.2",
+=======
+>>>>>>> 43612387baa284a68378da499bc71f30daa51687
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "lucide-react": "^1.17.0",
