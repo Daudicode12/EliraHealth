@@ -44,6 +44,29 @@ export async function POST(req: NextRequest) {
         hourly_rate: validatedData.hourlyRate || 0,
         verification_status: 'pending',
       });
+      
+      const { createNotification } = await import('@/lib/services/notification.service');
+      const { getMany } = await import('@/lib/db/client');
+      
+      // Notify Specialist
+      await createNotification({
+        userId,
+        title: "Credentials Submitted",
+        message: "Credentials submitted successfully. Awaiting admin review.",
+        type: "system"
+      });
+
+      // Notify Admins
+      const admins = await getMany<{id: string}>('SELECT id FROM profiles WHERE role = "admin"');
+      for (const admin of admins) {
+        await createNotification({
+          userId: admin.id,
+          title: "New Specialist Application",
+          message: `Dr. ${validatedData.firstName} ${validatedData.lastName} has submitted an application for review.`,
+          type: "system",
+          actionUrl: "/admin/doctors"
+        });
+      }
     }
     
     return NextResponse.json({
