@@ -1,5 +1,10 @@
 import { executeAction, getOne, getMany } from '@/lib/db/client';
 import { Appointment, CreateAppointmentInput, AppointmentStats, AppointmentStatus } from '@/lib/types/appointment';
+import { sendNotificationAndEmail } from '@/lib/services/notification.service';
+import AppointmentBookedEmail from '@/lib/email/templates/appointment-booked';
+import AppointmentConfirmedEmail from '@/lib/email/templates/appointment-confirmed';
+import AppointmentCancelledEmail from '@/lib/email/templates/appointment-cancelled';
+import { getProfileById, getExpertById } from '@/lib/db/queries';
 
 export class AppointmentError extends Error {
   constructor(message: string) {
@@ -105,6 +110,28 @@ export const AppointmentService = {
       [data.patientId, data.specialistId, data.appointmentDate, data.startTime, data.endTime, data.reasonForVisit || null, bookedBy]
     );
 
+    const patient = await getProfileById(data.patientId);
+    const specialist = await getExpertById(data.specialistId);
+
+    if (patient && patient.email && specialist) {
+      await sendNotificationAndEmail({
+        userId: data.patientId,
+        emailTo: patient.email as string,
+        emailSubject: "Elira Health - Appointment Request Sent",
+        title: "Appointment Requested",
+        message: `Your appointment request with Dr. ${specialist.display_name} has been sent.`,
+        type: "appointment",
+        actionUrl: "/patient/appointments",
+        emailTemplate: AppointmentBookedEmail({
+          name: patient.first_name as string,
+          specialistName: specialist.display_name as string,
+          date: data.appointmentDate,
+          time: data.startTime,
+          dashboardUrl: `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/patient/appointments`
+        })
+      });
+    }
+
     return result.lastInsertRowid?.toString() || '';
   },
 
@@ -117,10 +144,53 @@ export const AppointmentService = {
 
   async cancelAppointment(id: string): Promise<void> {
     await this.updateAppointmentStatus(id, 'CANCELLED');
+    const appointment = await getOne<Appointment>(`SELECT * FROM appointments WHERE id = ?`, [id]);
+    if (appointment) {
+      const patient = await getProfileById(appointment.patient_id);
+      const specialist = await getExpertById(appointment.specialist_id);
+      if (patient && patient.email && specialist) {
+        await sendNotificationAndEmail({
+          userId: appointment.patient_id,
+          emailTo: patient.email as string,
+          emailSubject: "Elira Health - Appointment Cancelled",
+          title: "Appointment Cancelled",
+          message: `Your appointment with Dr. ${specialist.display_name} on ${appointment.appointment_date} has been cancelled.`,
+          type: "appointment",
+          emailTemplate: AppointmentCancelledEmail({
+            name: patient.first_name as string,
+            specialistName: specialist.display_name as string,
+            date: appointment.appointment_date,
+            time: appointment.start_time
+          })
+        });
+      }
+    }
   },
 
   async confirmAppointment(id: string): Promise<void> {
     await this.updateAppointmentStatus(id, 'CONFIRMED');
+    const appointment = await getOne<Appointment>(`SELECT * FROM appointments WHERE id = ?`, [id]);
+    if (appointment) {
+      const patient = await getProfileById(appointment.patient_id);
+      const specialist = await getExpertById(appointment.specialist_id);
+      if (patient && patient.email && specialist) {
+        await sendNotificationAndEmail({
+          userId: appointment.patient_id,
+          emailTo: patient.email as string,
+          emailSubject: "Elira Health - Appointment Confirmed",
+          title: "Appointment Confirmed",
+          message: `Your appointment with Dr. ${specialist.display_name} has been confirmed.`,
+          type: "appointment",
+          actionUrl: "/patient/appointments",
+          emailTemplate: AppointmentConfirmedEmail({
+            name: patient.first_name as string,
+            specialistName: specialist.display_name as string,
+            date: appointment.appointment_date,
+            time: appointment.start_time
+          })
+        });
+      }
+    }
   },
 
   async completeAppointment(id: string): Promise<void> {
