@@ -1,5 +1,5 @@
 -- ============================================================================
--- Femora App - Comprehensive SQLite / Turso Schema (Audited & Verified)
+-- Elira Cycles App - Comprehensive SQLite / Turso Schema (Audited & Verified)
 -- ============================================================================
 -- Designed for Turso (libSQL/SQLite).
 -- Fully compatible with local Drift/SQLite models and remote schemas.
@@ -23,10 +23,10 @@ CREATE TABLE IF NOT EXISTS profiles (
   weight REAL,        -- Aligned with local DB
   created_at TEXT DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
   updated_at TEXT DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
-  current_cycle_mode TEXT DEFAULT 'tracking' CHECK (current_cycle_mode IN ('tracking', 'pregnant', 'postpartum')),
+  current_cycle_mode TEXT DEFAULT 'tracking' CHECK (current_cycle_mode IN ('tracking', 'pregnant', 'postpartum', 'partner')),
   average_cycle_length INTEGER DEFAULT 28 CHECK (average_cycle_length >= 21 AND average_cycle_length <= 35),
   average_period_length INTEGER DEFAULT 5 CHECK (average_period_length >= 1 AND average_period_length <= 10),
-  role TEXT DEFAULT 'user' CHECK (role IN ('user', 'admin', 'expert'))
+  role TEXT DEFAULT 'user' CHECK (role IN ('user', 'admin', 'expert', 'partner'))
 );
 
 -- ─────────────────────────────────────────────────────────────────────────────
