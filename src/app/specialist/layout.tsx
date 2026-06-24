@@ -1,5 +1,6 @@
 import { logoutAction } from "@/lib/actions/auth.actions";
 import { DoctorSidebar } from "@/components/layout/DoctorSidebar";
+import { DashboardHeader } from "@/components/layout/DashboardHeader";
 import { cookies } from "next/headers";
 import { getExpertByUserId } from "@/lib/db/queries";
 
@@ -27,7 +28,10 @@ export default async function DoctorLayout({ children }: { children: React.React
   return (
     <div className="flex flex-col lg:flex-row min-h-screen bg-slate-50 font-sans text-slate-900">
       <DoctorSidebar logoutAction={logoutAction} profileStatus={profileStatus} />
-      <main className="flex-1 p-6 lg:p-10 overflow-y-auto w-full">{children}</main>
+      <div className="flex-1 flex flex-col w-full">
+        <DashboardHeader role="specialist" />
+        <main className="flex-1 p-6 lg:p-10 overflow-y-auto w-full">{children}</main>
+      </div>
     </div>
   );
 }
