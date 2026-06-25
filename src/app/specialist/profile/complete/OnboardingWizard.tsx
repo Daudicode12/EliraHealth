@@ -81,6 +81,10 @@ export default function OnboardingWizard({ doctor }: OnboardingWizardProps) {
   const [hospitalName, setHospitalName] = useState(doctor.hospital_name || "");
   const [yearsExperience, setYearsExperience] = useState<number>(doctor.years_of_experience || 0);
   const [bio, setBio] = useState(doctor.bio || "");
+  const [licenseNumber, setLicenseNumber] = useState(doctor.license_number || "");
+  const [medicalCouncilNumber, setMedicalCouncilNumber] = useState(doctor.medical_council_number || "");
+  const [hourlyRate, setHourlyRate] = useState<number>(doctor.hourly_rate || 0);
+  const [practicingCertificateUrl, setPracticingCertificateUrl] = useState(doctor.practicing_certificate_url || "");
 
   // Step validation
   const validateStep = (currentStep: number): boolean => {
@@ -114,6 +118,18 @@ export default function OnboardingWizard({ doctor }: OnboardingWizardProps) {
       }
       if (yearsExperience < 0) {
         setError("Years of experience must be 0 or greater.");
+        return false;
+      }
+      if (!licenseNumber.trim()) {
+        setError("License number is required.");
+        return false;
+      }
+      if (!medicalCouncilNumber.trim()) {
+        setError("Medical Council Registration number is required.");
+        return false;
+      }
+      if (hourlyRate <= 0) {
+        setError("Please set a valid consultation hourly rate.");
         return false;
       }
     }
@@ -172,6 +188,10 @@ export default function OnboardingWizard({ doctor }: OnboardingWizardProps) {
       hospitalName,
       yearsExperience,
       bio: bio || undefined,
+      licenseNumber,
+      medicalCouncilNumber,
+      hourlyRate,
+      practicingCertificateUrl: practicingCertificateUrl || undefined,
     };
 
     try {
@@ -256,6 +276,21 @@ export default function OnboardingWizard({ doctor }: OnboardingWizardProps) {
             ))}
           </div>
         </div>
+
+        {/* Warning reason banner for info request redirection */}
+        {doctor.profile_status === 'profile_incomplete' && doctor.rejection_reason && (
+          <div className="bg-amber-50 border border-amber-200 text-amber-900 text-sm px-6 py-4 rounded-2xl shadow-sm space-y-1">
+            <h4 className="font-bold text-amber-800 flex items-center gap-2">
+              ⚠️ Attention: Information Requested
+            </h4>
+            <p className="text-amber-700 leading-relaxed font-medium">
+              An administrator reviewed your profile and requested the following details before approval:
+            </p>
+            <div className="bg-white border border-amber-100 p-3 rounded-xl font-mono text-xs text-amber-900 mt-2">
+              "{doctor.rejection_reason}"
+            </div>
+          </div>
+        )}
 
         {/* Error Alert Box */}
         {error && (
@@ -411,7 +446,7 @@ export default function OnboardingWizard({ doctor }: OnboardingWizardProps) {
             <div className="space-y-6 animate-in fade-in duration-300">
               <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2 border-b pb-2">
                 <Briefcase size={18} className="text-brand" />
-                3. Clinical Practice & Pricing
+                3. Clinical Practice & Credentials
               </h2>
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -426,7 +461,7 @@ export default function OnboardingWizard({ doctor }: OnboardingWizardProps) {
                     placeholder="e.g. Nairobi Hospital"
                   />
                 </div>
-                <div className="space-y-1.5 md:col-span-2">
+                <div className="space-y-1.5">
                   <label className="text-sm font-semibold text-slate-700">Years of Experience</label>
                   <input
                     type="number"
@@ -436,6 +471,50 @@ export default function OnboardingWizard({ doctor }: OnboardingWizardProps) {
                     onChange={(e) => setYearsExperience(Number(e.target.value))}
                     className="w-full px-4 py-2 border border-slate-200 rounded-xl shadow-sm outline-none focus:border-brand focus:ring-2 focus:ring-brand-blue/10 transition-all text-sm"
                     placeholder="e.g. 8"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-sm font-semibold text-slate-700">License Number</label>
+                  <input
+                    type="text"
+                    required
+                    value={licenseNumber}
+                    onChange={(e) => setLicenseNumber(e.target.value)}
+                    className="w-full px-4 py-2 border border-slate-200 rounded-xl shadow-sm outline-none focus:border-brand focus:ring-2 focus:ring-brand-blue/10 transition-all text-sm"
+                    placeholder="e.g. LIC-12345"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-sm font-semibold text-slate-700">Medical Council Registration</label>
+                  <input
+                    type="text"
+                    required
+                    value={medicalCouncilNumber}
+                    onChange={(e) => setMedicalCouncilNumber(e.target.value)}
+                    className="w-full px-4 py-2 border border-slate-200 rounded-xl shadow-sm outline-none focus:border-brand focus:ring-2 focus:ring-brand-blue/10 transition-all text-sm"
+                    placeholder="e.g. MDC-6789"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-sm font-semibold text-slate-700">Hourly Rate (KES)</label>
+                  <input
+                    type="number"
+                    required
+                    min="0"
+                    value={hourlyRate === 0 ? "" : hourlyRate}
+                    onChange={(e) => setHourlyRate(Number(e.target.value))}
+                    className="w-full px-4 py-2 border border-slate-200 rounded-xl shadow-sm outline-none focus:border-brand focus:ring-2 focus:ring-brand-blue/10 transition-all text-sm"
+                    placeholder="e.g. 3000"
+                  />
+                </div>
+                <div className="space-y-1.5 md:col-span-2">
+                  <label className="text-sm font-semibold text-slate-700">Practicing Certificate Document URL</label>
+                  <input
+                    type="url"
+                    value={practicingCertificateUrl}
+                    onChange={(e) => setPracticingCertificateUrl(e.target.value)}
+                    className="w-full px-4 py-2 border border-slate-200 rounded-xl shadow-sm outline-none focus:border-brand focus:ring-2 focus:ring-brand-blue/10 transition-all text-sm"
+                    placeholder="https://example.com/certificate.pdf"
                   />
                 </div>
               </div>
@@ -465,7 +544,7 @@ export default function OnboardingWizard({ doctor }: OnboardingWizardProps) {
               <div className="bg-slate-50 border border-slate-200 rounded-xl p-5 space-y-4">
                 <h3 className="font-bold text-slate-800 text-sm">Summary of Information</h3>
                 
-                <div className="grid grid-cols-2 gap-4 text-xs">
+                <div className="grid grid-cols-2 gap-4 text-xs font-medium">
                   <div>
                     <span className="text-slate-400 block font-medium">Display Name</span>
                     <span className="text-slate-800 font-semibold">{displayName}</span>
@@ -494,6 +573,26 @@ export default function OnboardingWizard({ doctor }: OnboardingWizardProps) {
                     <span className="text-slate-400 block font-medium">Experience</span>
                     <span className="text-slate-800 font-semibold">{yearsExperience} Years</span>
                   </div>
+                  <div>
+                    <span className="text-slate-400 block font-medium">License Number</span>
+                    <span className="text-slate-800 font-semibold">{licenseNumber}</span>
+                  </div>
+                  <div>
+                    <span className="text-slate-400 block font-medium">Medical Council Reg.</span>
+                    <span className="text-slate-800 font-semibold">{medicalCouncilNumber}</span>
+                  </div>
+                  <div>
+                    <span className="text-slate-400 block font-medium">Hourly Rate</span>
+                    <span className="text-slate-800 font-semibold">{hourlyRate} KES/hr</span>
+                  </div>
+                  {practicingCertificateUrl && (
+                    <div className="col-span-2">
+                      <span className="text-slate-400 block font-medium">Certificate Document</span>
+                      <a href={practicingCertificateUrl} target="_blank" rel="noopener noreferrer" className="text-brand font-semibold hover:underline truncate block">
+                        {practicingCertificateUrl}
+                      </a>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>

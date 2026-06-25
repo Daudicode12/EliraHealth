@@ -1,17 +1,18 @@
-import { getMedicalRecords, createMedicalRecord } from "@/lib/db/specialistQueries";
+import { getMedicalRecords, createMedicalRecord, getAssignedPatients } from "@/lib/db/specialistQueries";
 import { getExpertByUserId } from "@/lib/db/queries";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-import { FileText } from "lucide-react";
+import { FileText, Plus, User, ClipboardList, Calendar } from "lucide-react";
 import { revalidatePath } from "next/cache";
 
 export default async function MedicalRecordsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ new?: string }>;
+  searchParams: Promise<{ new?: string; id?: string }>;
 }) {
   const resolvedParams = await searchParams;
   const newPatientId = resolvedParams.new;
+  const filterRecordId = resolvedParams.id;
 
   const token = (await cookies()).get("auth-token")?.value;
   let userId = token?.replace("mock-token-", "");
@@ -27,18 +28,21 @@ export default async function MedicalRecordsPage({
   const doctor = await getExpertByUserId(userId);
   if (!doctor) redirect("/login");
 
-  const records = await getMedicalRecords(doctor.id) as any[];
+  const [records, patients] = await Promise.all([
+    getMedicalRecords(doctor.id) as Promise<any[]>,
+    getAssignedPatients(doctor.id) as Promise<any[]>
+  ]);
 
   async function handleCreateRecord(formData: FormData) {
     "use server";
     const token = (await cookies()).get("auth-token")?.value;
     let userId = token?.replace("mock-token-", "");
-  if (token?.startsWith("mock-jwt-")) {
-    try {
-      const decoded = JSON.parse(Buffer.from(token.replace("mock-jwt-", ""), "base64").toString("utf-8"));
-      userId = decoded.id;
-    } catch(e) {}
-  }
+    if (token?.startsWith("mock-jwt-")) {
+      try {
+        const decoded = JSON.parse(Buffer.from(token.replace("mock-jwt-", ""), "base64").toString("utf-8"));
+        userId = decoded.id;
+      } catch(e) {}
+    }
     if (!userId) return;
     
     const doc = await getExpertByUserId(userId);
@@ -57,63 +61,133 @@ export default async function MedicalRecordsPage({
     redirect("/specialist/medical-records");
   }
 
+  const selectedPatient = patients.find(p => p.id === newPatientId);
+
+  // If a specific record ID is provided, filter or sort to show it first
+  const sortedRecords = [...records].sort((a, b) => {
+    if (a.id === filterRecordId) return -1;
+    if (b.id === filterRecordId) return 1;
+    return 0;
+  });
+
   return (
-    <div className="space-y-6 max-w-4xl">
-      <div className="flex justify-between items-center">
-        <h1 className="text-2xl font-bold tracking-tight">Medical Records</h1>
+    <div className="space-y-6 max-w-4xl animate-in fade-in slide-in-from-bottom-4 duration-500">
+      
+      {/* Header Banner */}
+      <div className="flex justify-between items-center bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight text-slate-900 flex items-center gap-3">
+            <ClipboardList className="text-brand" />
+            Medical Records
+          </h1>
+          <p className="text-slate-500 text-sm mt-1">Document diagnoses, prescriptions, and clinical treatment plans.</p>
+        </div>
+        {!newPatientId && (
+          <a 
+            href="/specialist/medical-records?new=select" 
+            className="inline-flex items-center gap-1.5 bg-brand hover:bg-brand-deep text-white px-4 py-2.5 rounded-xl text-sm font-semibold shadow-sm transition-all"
+          >
+            <Plus size={16} />
+            Create Record
+          </a>
+        )}
       </div>
 
+      {/* Info notice when filtering by ID */}
+      {filterRecordId && (
+        <div className="bg-blue-50 border border-blue-200 p-4 rounded-xl flex items-center justify-between text-sm text-blue-900 font-medium">
+          <span className="flex items-center gap-2">
+            ℹ️ Highlighted record is selected from the patient's history.
+          </span>
+          <a href="/specialist/medical-records" className="text-blue-700 hover:text-blue-900 font-bold underline transition-colors">
+            Clear Highlight
+          </a>
+        </div>
+      )}
+
+      {/* Record Creation Panel */}
       {newPatientId && (
-        <div className="bg-white p-6 rounded-xl border shadow-sm mb-8">
-          <h2 className="text-lg font-semibold mb-4 border-b pb-2">Create New Medical Record</h2>
-          <form action={handleCreateRecord} className="space-y-4">
-            <input type="hidden" name="patient_id" value={newPatientId} />
+        <div className="bg-white p-8 rounded-2xl border border-slate-200 shadow-sm animate-in fade-in duration-300">
+          <h2 className="text-lg font-bold text-slate-900 mb-6 border-b pb-3 flex items-center gap-2">
+            <FileText size={20} className="text-brand" />
+            Create New Medical Record
+          </h2>
+          <form action={handleCreateRecord} className="space-y-5">
             
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Diagnosis *</label>
+            {/* Patient Selection Logic */}
+            {newPatientId === "select" ? (
+              <div className="space-y-1.5">
+                <label className="text-sm font-semibold text-slate-700">Select Patient *</label>
+                <select 
+                  name="patient_id" 
+                  required
+                  className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm outline-none focus:border-brand focus:ring-2 focus:ring-brand/10 focus:bg-white transition-all"
+                >
+                  <option value="">-- Choose Patient --</option>
+                  {patients.map(p => (
+                    <option key={p.id} value={p.id}>
+                      {p.first_name} {p.last_name} ({p.email || p.phone_number})
+                    </option>
+                  ))}
+                </select>
+              </div>
+            ) : (
+              <div className="space-y-1.5">
+                <input type="hidden" name="patient_id" value={newPatientId} />
+                <label className="text-sm font-semibold text-slate-500">Patient</label>
+                <div className="flex items-center gap-2.5 px-4 py-3 rounded-xl border border-slate-200 bg-slate-50 text-sm font-bold text-slate-800">
+                  <User size={16} className="text-slate-400" />
+                  {selectedPatient ? `${selectedPatient.first_name} ${selectedPatient.last_name}` : "Selected Patient"}
+                </div>
+              </div>
+            )}
+            
+            <div className="space-y-1.5">
+              <label className="text-sm font-semibold text-slate-700">Diagnosis *</label>
               <input 
                 type="text" 
                 name="diagnosis" 
                 required 
-                className="w-full rounded-md border bg-gray-50 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-brand focus:bg-white"
-                placeholder="e.g. Hypertension, Routine Checkup"
+                className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm outline-none focus:border-brand focus:ring-2 focus:ring-brand/10 focus:bg-white transition-all"
+                placeholder="e.g. Prenatal checkup, post-partum fatigue management"
               />
             </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Treatment Plan</label>
+            <div className="space-y-1.5">
+              <label className="text-sm font-semibold text-slate-700">Treatment Plan</label>
               <textarea 
                 name="treatment_plan" 
                 rows={3} 
-                className="w-full rounded-md border bg-gray-50 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-brand focus:bg-white"
-                placeholder="Details of the treatment..."
+                className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm outline-none focus:border-brand focus:ring-2 focus:ring-brand/10 focus:bg-white transition-all resize-none"
+                placeholder="Detail clinical recommendations, dietary changes, exercises..."
               />
             </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Prescription</label>
+            <div className="space-y-1.5">
+              <label className="text-sm font-semibold text-slate-700">Prescription</label>
               <textarea 
                 name="prescription" 
                 rows={2} 
-                className="w-full rounded-md border bg-gray-50 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-brand focus:bg-white"
-                placeholder="Medication names and dosages..."
+                className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm outline-none focus:border-brand focus:ring-2 focus:ring-brand/10 focus:bg-white transition-all resize-none"
+                placeholder="Medication name, dosage, frequency..."
               />
             </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Additional Notes</label>
+            <div className="space-y-1.5">
+              <label className="text-sm font-semibold text-slate-700">Additional Notes</label>
               <textarea 
                 name="notes" 
                 rows={2} 
-                className="w-full rounded-md border bg-gray-50 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-brand focus:bg-white"
+                className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm outline-none focus:border-brand focus:ring-2 focus:ring-brand/10 focus:bg-white transition-all resize-none"
+                placeholder="Clinical observations or remarks..."
               />
             </div>
 
-            <div className="flex justify-end gap-3 pt-2">
-              <a href="/specialist/medical-records" className="px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-md transition-colors">
+            <div className="flex justify-end gap-3 pt-3 border-t border-slate-100">
+              <a href="/specialist/medical-records" className="px-4 py-2.5 text-sm font-semibold text-slate-600 hover:bg-slate-50 border border-slate-200 rounded-xl transition-all cursor-pointer">
                 Cancel
               </a>
-              <button type="submit" className="bg-brand hover:bg-brand-deep text-white px-4 py-2 text-sm font-medium rounded-md transition-colors">
+              <button type="submit" className="bg-brand hover:bg-brand-deep text-white px-5 py-2.5 text-sm font-semibold rounded-xl transition-all cursor-pointer shadow-sm">
                 Save Record
               </button>
             </div>
@@ -121,49 +195,70 @@ export default async function MedicalRecordsPage({
         </div>
       )}
 
-      <div className="rounded-xl border bg-card overflow-hidden">
-        {records.length === 0 ? (
-          <div className="p-12 text-center border-dashed border-b-0 border-x-0">
-            <p className="text-gray-500">No medical records found.</p>
+      {/* Records Listing */}
+      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+        {sortedRecords.length === 0 ? (
+          <div className="p-16 text-center">
+            <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-4 border border-slate-100">
+              <FileText className="text-slate-400" size={28} />
+            </div>
+            <h3 className="text-slate-900 font-bold">No medical records</h3>
+            <p className="text-slate-500 text-sm mt-1 max-w-sm mx-auto">
+              You haven't recorded any diagnoses or prescriptions yet.
+            </p>
           </div>
         ) : (
-          <div className="divide-y">
-            {records.map((record) => (
-              <div key={record.id} className="p-5 hover:bg-gray-50 transition-colors">
-                <div className="flex justify-between items-start mb-2">
-                  <div className="flex items-center gap-2">
-                    <FileText size={18} className="text-brand" />
-                    <h3 className="font-medium text-gray-900">{record.diagnosis}</h3>
-                  </div>
-                  <span className="text-xs text-gray-500">{new Date(record.created_at).toLocaleDateString()}</span>
-                </div>
-                
-                <p className="text-sm text-gray-600 mb-3 ml-6">
-                  <span className="font-medium text-gray-700">Patient:</span> {record.first_name} {record.last_name}
-                </p>
-
-                <div className="ml-6 space-y-2 text-sm text-gray-600 bg-white p-3 rounded-lg border border-gray-100 shadow-sm">
-                  {record.treatment_plan && (
+          <div className="divide-y divide-slate-100">
+            {sortedRecords.map((record) => {
+              const isHighlighted = record.id === filterRecordId;
+              return (
+                <div 
+                  key={record.id} 
+                  className={`p-6 transition-all border-l-4 ${
+                    isHighlighted 
+                      ? "bg-blue-50/40 border-l-blue-600 shadow-sm" 
+                      : "hover:bg-slate-50/50 border-l-transparent"
+                  }`}
+                >
+                  <div className="flex justify-between items-start mb-3">
                     <div>
-                      <span className="font-semibold text-gray-700 block text-xs uppercase tracking-wider mb-0.5">Treatment Plan</span>
-                      <p>{record.treatment_plan}</p>
+                      <h3 className="font-bold text-slate-900 text-base flex items-center gap-2">
+                        <FileText size={18} className={isHighlighted ? "text-blue-600" : "text-brand"} />
+                        {record.diagnosis}
+                      </h3>
+                      <p className="text-sm text-slate-500 mt-1 font-semibold">
+                        Patient: <span className="text-slate-800">{record.first_name} {record.last_name}</span>
+                      </p>
                     </div>
-                  )}
-                  {record.prescription && (
-                    <div className="pt-2 border-t border-gray-50">
-                      <span className="font-semibold text-gray-700 block text-xs uppercase tracking-wider mb-0.5">Prescription</span>
-                      <p>{record.prescription}</p>
+                    <div className="flex items-center gap-1 text-xs text-slate-400 font-semibold bg-slate-50 px-2.5 py-1 rounded-full border">
+                      <Calendar size={12} />
+                      {new Date(record.created_at).toLocaleDateString()}
                     </div>
-                  )}
-                  {record.notes && (
-                    <div className="pt-2 border-t border-gray-50">
-                      <span className="font-semibold text-gray-700 block text-xs uppercase tracking-wider mb-0.5">Notes</span>
-                      <p>{record.notes}</p>
-                    </div>
-                  )}
+                  </div>
+
+                  <div className="space-y-3 text-sm text-slate-600 bg-white p-4 rounded-xl border border-slate-200/60 mt-4 shadow-xs">
+                    {record.treatment_plan && (
+                      <div>
+                        <span className="font-bold text-slate-400 block text-[10px] uppercase tracking-wider mb-1">Treatment Plan</span>
+                        <p className="text-slate-800 leading-relaxed font-medium">{record.treatment_plan}</p>
+                      </div>
+                    )}
+                    {record.prescription && (
+                      <div className="pt-3 border-t border-slate-200/50">
+                        <span className="font-bold text-slate-400 block text-[10px] uppercase tracking-wider mb-1">Prescription</span>
+                        <p className="text-slate-800 font-medium">{record.prescription}</p>
+                      </div>
+                    )}
+                    {record.notes && (
+                      <div className="pt-3 border-t border-slate-200/50">
+                        <span className="font-bold text-slate-400 block text-[10px] uppercase tracking-wider mb-1">Clinical Notes</span>
+                        <p className="text-slate-800 leading-relaxed font-medium">{record.notes}</p>
+                      </div>
+                    )}
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>

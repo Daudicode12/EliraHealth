@@ -1,4 +1,11 @@
-import { getExpertsByStatus, approveExpert, rejectExpert, suspendExpert, getExpertStatusCounts } from "@/lib/db/queries";
+import { 
+  getExpertsByStatus, 
+  approveExpert, 
+  rejectExpert, 
+  suspendExpert, 
+  getExpertStatusCounts,
+  requestMoreInfoExpert
+} from "@/lib/db/queries";
 import { revalidatePath } from "next/cache";
 import { ExpandableDoctorCard } from "@/components/admin/ExpandableDoctorCard";
 import { cookies } from "next/headers";
@@ -46,8 +53,15 @@ export default async function AdminDoctorsPage({
     revalidatePath("/admin/doctors");
   }
 
+  async function handleRequestInfo(id: string, reason: string) {
+    "use server";
+    await requestMoreInfoExpert(id, reason);
+    revalidatePath("/admin/doctors");
+  }
+
   const tabs = [
     { id: "pending", label: `Pending Review`, count: counts.pending || 0 },
+    { id: "incomplete", label: `Info Requested`, count: counts.incomplete || 0 },
     { id: "approved", label: `Approved`, count: counts.approved || 0 },
     { id: "rejected", label: `Rejected`, count: counts.rejected || 0 },
     { id: "suspended", label: `Suspended`, count: counts.suspended || 0 },
@@ -109,6 +123,7 @@ export default async function AdminDoctorsPage({
                 onApprove={handleApprove}
                 onReject={handleReject}
                 onSuspend={handleSuspend}
+                onRequestInfo={handleRequestInfo}
               />
             ))}
           </div>
