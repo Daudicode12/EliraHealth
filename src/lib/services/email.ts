@@ -1,5 +1,62 @@
 // src/lib/services/email.ts
-import nodemailer from 'nodemailer';
+
+/**
+ * Sends a transactional email using Brevo's HTTP API.
+ * Uses process.env.BREVO_API_KEY for authorization.
+ */
+async function sendBrevoEmail(data: {
+  toEmail: string;
+  toName: string;
+  subject: string;
+  textContent: string;
+  htmlContent: string;
+}): Promise<void> {
+  const apiKey = process.env.BREVO_API_KEY;
+  if (!apiKey) {
+    console.warn(`[Brevo API] BREVO_API_KEY is not defined in environment variables. Email logged below.`);
+    console.log(`-----------------------------------------`);
+    console.log(`To: ${data.toEmail} (${data.toName})`);
+    console.log(`Subject: ${data.subject}`);
+    console.log(`Body: ${data.textContent}`);
+    console.log(`-----------------------------------------`);
+    return;
+  }
+
+  try {
+    const response = await fetch("https://api.brevo.com/v3/smtp/email", {
+      method: "POST",
+      headers: {
+        "accept": "application/json",
+        "api-key": apiKey,
+        "content-type": "application/json"
+      },
+      body: JSON.stringify({
+        sender: {
+          name: "Elira Health",
+          email: "info@raxcore.dev"
+        },
+        to: [
+          {
+            email: data.toEmail,
+            name: data.toName
+          }
+        ],
+        subject: data.subject,
+        htmlContent: data.htmlContent,
+        textContent: data.textContent
+      })
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error(`[Brevo API] Failed to send email to ${data.toEmail}. Status: ${response.status}. Error: ${errorText}`);
+    } else {
+      console.log(`[Brevo API] Email sent successfully to ${data.toEmail}`);
+    }
+  } catch (error) {
+    console.error(`[Brevo API] Error sending email to ${data.toEmail}:`, error);
+  }
+}
 
 /**
  * Send specialist credentials email
@@ -76,49 +133,13 @@ Elira Health Team`;
     </div>
   `;
 
-  console.log(`[Email Attempt] Sending specialist credentials email to ${email}`);
-  console.log(`-----------------------------------------`);
-  console.log(`To: ${email}`);
-  console.log(`Subject: Welcome to Elira Health - Your Specialist Account`);
-  console.log(`Password: ${tempPassword}`);
-  console.log(`Login URL: ${loginUrl}`);
-  console.log(`-----------------------------------------`);
-
-  const host = process.env.SMTP_HOST || process.env.EMAIL_SERVER_HOST;
-  const port = parseInt(process.env.SMTP_PORT || process.env.EMAIL_SERVER_PORT || "587");
-  const user = process.env.SMTP_USER || process.env.EMAIL_SERVER_USER;
-  const pass = process.env.SMTP_PASS || process.env.EMAIL_SERVER_PASSWORD;
-  const from = process.env.SMTP_FROM || process.env.EMAIL_FROM || "Elira Health <noreply@elira-health.com>";
-
-  if (!host || !user || !pass) {
-    console.warn(`[Email Service] SMTP configuration missing. Email not sent, logged above.`);
-    return;
-  }
-
-  try {
-    const transporter = nodemailer.createTransport({
-      host,
-      port,
-      secure: port === 465,
-      auth: {
-        user,
-        pass,
-      },
-    });
-
-    await transporter.sendMail({
-      from,
-      to: email,
-      subject: "Welcome to Elira Health - Your Specialist Account",
-      text: emailBody,
-      html: emailHtml,
-    });
-
-    console.log(`[Email Service] Credentials email sent successfully to ${email}`);
-  } catch (error) {
-    console.error(`[Email Service] Failed to send email to ${email}:`, error);
-    // Graceful handling: log it but do not throw error so DB operations are not rolled back unnecessarily
-  }
+  await sendBrevoEmail({
+    toEmail: email,
+    toName: `Dr. ${firstName} ${lastName}`,
+    subject: "Welcome to Elira Health - Your Specialist Account",
+    textContent: emailBody,
+    htmlContent: emailHtml
+  });
 }
 
 /**
@@ -164,43 +185,13 @@ Elira Health Team`;
     </div>
   `;
 
-  console.log(`[Email Attempt] Sending specialist approval email to ${email}`);
-  console.log(`-----------------------------------------`);
-  console.log(`To: ${email}`);
-  console.log(`Subject: Elira Health - Account Verified!`);
-  console.log(`-----------------------------------------`);
-
-  const host = process.env.SMTP_HOST || process.env.EMAIL_SERVER_HOST;
-  const port = parseInt(process.env.SMTP_PORT || process.env.EMAIL_SERVER_PORT || "587");
-  const user = process.env.SMTP_USER || process.env.EMAIL_SERVER_USER;
-  const pass = process.env.SMTP_PASS || process.env.EMAIL_SERVER_PASSWORD;
-  const from = process.env.SMTP_FROM || process.env.EMAIL_FROM || "Elira Health <noreply@elira-health.com>";
-
-  if (!host || !user || !pass) {
-    console.warn(`[Email Service] SMTP configuration missing. Email not sent, logged above.`);
-    return;
-  }
-
-  try {
-    const transporter = nodemailer.createTransport({
-      host,
-      port,
-      secure: port === 465,
-      auth: { user, pass },
-    });
-
-    await transporter.sendMail({
-      from,
-      to: email,
-      subject: "Elira Health - Account Verified!",
-      text: emailBody,
-      html: emailHtml,
-    });
-
-    console.log(`[Email Service] Approval email sent successfully to ${email}`);
-  } catch (error) {
-    console.error(`[Email Service] Failed to send email to ${email}:`, error);
-  }
+  await sendBrevoEmail({
+    toEmail: email,
+    toName: `Dr. ${firstName} ${lastName}`,
+    subject: "Elira Health - Account Verified!",
+    textContent: emailBody,
+    htmlContent: emailHtml
+  });
 }
 
 /**
@@ -255,44 +246,13 @@ Elira Health Team`;
     </div>
   `;
 
-  console.log(`[Email Attempt] Sending specialist rejection email to ${email}`);
-  console.log(`-----------------------------------------`);
-  console.log(`To: ${email}`);
-  console.log(`Subject: Elira Health - Specialist Application Status`);
-  console.log(`Reason: ${reason}`);
-  console.log(`-----------------------------------------`);
-
-  const host = process.env.SMTP_HOST || process.env.EMAIL_SERVER_HOST;
-  const port = parseInt(process.env.SMTP_PORT || process.env.EMAIL_SERVER_PORT || "587");
-  const user = process.env.SMTP_USER || process.env.EMAIL_SERVER_USER;
-  const pass = process.env.SMTP_PASS || process.env.EMAIL_SERVER_PASSWORD;
-  const from = process.env.SMTP_FROM || process.env.EMAIL_FROM || "Elira Health <noreply@elira-health.com>";
-
-  if (!host || !user || !pass) {
-    console.warn(`[Email Service] SMTP configuration missing. Email not sent, logged above.`);
-    return;
-  }
-
-  try {
-    const transporter = nodemailer.createTransport({
-      host,
-      port,
-      secure: port === 465,
-      auth: { user, pass },
-    });
-
-    await transporter.sendMail({
-      from,
-      to: email,
-      subject: "Elira Health - Specialist Application Status",
-      text: emailBody,
-      html: emailHtml,
-    });
-
-    console.log(`[Email Service] Rejection email sent successfully to ${email}`);
-  } catch (error) {
-    console.error(`[Email Service] Failed to send email to ${email}:`, error);
-  }
+  await sendBrevoEmail({
+    toEmail: email,
+    toName: `Dr. ${firstName} ${lastName}`,
+    subject: "Elira Health - Specialist Application Status",
+    textContent: emailBody,
+    htmlContent: emailHtml
+  });
 }
 
 /**
@@ -347,42 +307,11 @@ Elira Health Team`;
     </div>
   `;
 
-  console.log(`[Email Attempt] Sending specialist info request email to ${email}`);
-  console.log(`-----------------------------------------`);
-  console.log(`To: ${email}`);
-  console.log(`Subject: Elira Health - Additional Information Required`);
-  console.log(`Request: ${message}`);
-  console.log(`-----------------------------------------`);
-
-  const host = process.env.SMTP_HOST || process.env.EMAIL_SERVER_HOST;
-  const port = parseInt(process.env.SMTP_PORT || process.env.EMAIL_SERVER_PORT || "587");
-  const user = process.env.SMTP_USER || process.env.EMAIL_SERVER_USER;
-  const pass = process.env.SMTP_PASS || process.env.EMAIL_SERVER_PASSWORD;
-  const from = process.env.SMTP_FROM || process.env.EMAIL_FROM || "Elira Health <noreply@elira-health.com>";
-
-  if (!host || !user || !pass) {
-    console.warn(`[Email Service] SMTP configuration missing. Email not sent, logged above.`);
-    return;
-  }
-
-  try {
-    const transporter = nodemailer.createTransport({
-      host,
-      port,
-      secure: port === 465,
-      auth: { user, pass },
-    });
-
-    await transporter.sendMail({
-      from,
-      to: email,
-      subject: "Elira Health - Additional Information Required",
-      text: emailBody,
-      html: emailHtml,
-    });
-
-    console.log(`[Email Service] Info request email sent successfully to ${email}`);
-  } catch (error) {
-    console.error(`[Email Service] Failed to send email to ${email}:`, error);
-  }
+  await sendBrevoEmail({
+    toEmail: email,
+    toName: `Dr. ${firstName} ${lastName}`,
+    subject: "Elira Health - Additional Information Required",
+    textContent: emailBody,
+    htmlContent: emailHtml
+  });
 }
