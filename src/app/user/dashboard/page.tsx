@@ -105,10 +105,16 @@ export default async function UserDashboardPage() {
     }
   }
 
+  let latestCycle: any = null;
+
   // Load mode-specific details
   if (profile.current_cycle_mode === "tracking") {
     cycleSymptoms = await getMany<any>(
       "SELECT * FROM symptoms WHERE user_id = ? ORDER BY date DESC LIMIT 10",
+      [userId]
+    );
+    latestCycle = await getOne<any>(
+      "SELECT * FROM menstrual_cycles WHERE user_id = ? ORDER BY start_date DESC LIMIT 1",
       [userId]
     );
     const invitation = await getOne<{ invitation_code: string }>(
@@ -128,7 +134,7 @@ export default async function UserDashboardPage() {
         [userId, pregnancyDetails.id]
       );
       babyKicks = await getMany<any>(
-        "SELECT * FROM baby_kicks WHERE user_id = ? AND pregnancy_id = ? ORDER BY logged_at DESC LIMIT 10",
+        "SELECT * FROM baby_kicks WHERE user_id = ? AND pregnancy_id = ? ORDER BY kick_time DESC LIMIT 10",
         [userId, pregnancyDetails.id]
       );
     }
@@ -201,6 +207,10 @@ export default async function UserDashboardPage() {
         "SELECT * FROM symptoms WHERE user_id = ? ORDER BY date DESC LIMIT 10",
         [partnerId]
       );
+      latestCycle = await getOne<any>(
+        "SELECT * FROM menstrual_cycles WHERE user_id = ? ORDER BY start_date DESC LIMIT 1",
+        [partnerId]
+      );
     }
   }
 
@@ -250,6 +260,8 @@ export default async function UserDashboardPage() {
             role: profile.role,
             phone_number: profile.phone_number || null,
             current_cycle_mode: profile.current_cycle_mode || null,
+            average_cycle_length: profile.average_cycle_length || 28,
+            average_period_length: profile.average_period_length || 5,
           }}
           experts={experts}
           appointments={appointments}
@@ -271,6 +283,7 @@ export default async function UserDashboardPage() {
           partnerInsights={partnerInsights}
           pregnancyDetails={pregnancyDetails}
           postpartumDetails={postpartumDetails}
+          latestCycle={latestCycle}
         />
       </main>
     </div>

@@ -27,6 +27,7 @@ import {
   getOrCreatePartnerInvitationAction, 
   partnerConnectAction, 
   logCycleSymptomAction, 
+  logNewCycleStartAction,
   logPregnancySymptomAction, 
   logBabyKickAction, 
   logFeedingSessionAction, 
@@ -54,6 +55,8 @@ interface Profile {
   role: string;
   phone_number: string | null;
   current_cycle_mode: string | null;
+  average_cycle_length?: number | null;
+  average_period_length?: number | null;
 }
 
 interface Appointment {
@@ -91,6 +94,7 @@ interface UserDashboardClientProps {
   partnerInsights?: any[];
   pregnancyDetails?: any;
   postpartumDetails?: any;
+  latestCycle?: any;
 }
 
 export function UserDashboardClient({
@@ -109,6 +113,7 @@ export function UserDashboardClient({
   partnerInsights = [],
   pregnancyDetails,
   postpartumDetails,
+  latestCycle,
 }: UserDashboardClientProps) {
   const [isPending, startTransition] = useTransition();
   const [mode, setMode] = useState<string | null>(profile.current_cycle_mode);
@@ -117,6 +122,7 @@ export function UserDashboardClient({
   // Onboarding states
   const [cycleLength, setCycleLength] = useState(28);
   const [periodLength, setPeriodLength] = useState(5);
+  const [lastPeriodStartDate, setLastPeriodStartDate] = useState(new Date().toISOString().split("T")[0]);
   const [conceptionDate, setConceptionDate] = useState(new Date().toISOString().split("T")[0]);
   const [babyNickname, setBabyNickname] = useState("");
   const [babyGender, setBabyGender] = useState<"unknown" | "boy" | "girl">("unknown");
@@ -127,6 +133,10 @@ export function UserDashboardClient({
   const [partnerInviteInput, setPartnerInviteInput] = useState("");
   const [errorMsg, setErrorMsg] = useState("");
   const [successMsg, setSuccessMsg] = useState("");
+
+  // Tracking modal sub-tab
+  const [trackingModalTab, setTrackingModalTab] = useState<"symptom" | "new_cycle">("symptom");
+  const [newCycleDate, setNewCycleDate] = useState(new Date().toISOString().split("T")[0]);
 
   // Sharing states
   const [myPartnerCode, setMyPartnerCode] = useState<string | null>(initialPartnerCode);
@@ -172,6 +182,107 @@ export function UserDashboardClient({
   // Partner messaging state
   const [partnerMessage, setPartnerMessage] = useState("");
 
+  // Dynamic calculations for menstrual cycle
+  let currentCycleDay = "No Data";
+  let currentCycleDaySubtitle = "Log period to start tracking";
+  let nextPeriodStarts = "No Data";
+  let nextPeriodStartsSubtitle = "Cycle not started";
+  let fertilityStatus = "Unknown";
+  let fertilityStatusSubtitle = "Log last period start date";
+  
+  if (latestCycle) {
+    const cycleLengthVal = latestCycle.cycle_length || profile.average_cycle_length || 28;
+    const periodLengthVal = latestCycle.period_length || profile.average_period_length || 5;
+    
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const start = new Date(latestCycle.start_date);
+    start.setHours(0, 0, 0, 0);
+    
+    // Difference in days
+    const diffTime = today.getTime() - start.getTime();
+    const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+    
+    // We add 1 because Day 1 is the start_date itself
+    const day = diffDays + 1;
+    
+    if (day > 0) {
+      if (day <= cycleLengthVal) {
+        currentCycleDay = `Day ${day}`;
+        if (day <= periodLengthVal) {
+          currentCycleDaySubtitle = "Bleeding phase / Period";
+        } else {
+          currentCycleDaySubtitle = "Follicular phase";
+        }
+      } else {
+        const lateDays = day - cycleLengthVal;
+        currentCycleDay = `Day ${day}`;
+        currentCycleDaySubtitle = `Cycle late by ${lateDays} day${lateDays > 1 ? 's' : ''}`;
+      }
+    } else {
+      currentCycleDay = "Future Start";
+      currentCycleDaySubtitle = `Starts in ${Math.abs(day)} day${Math.abs(day) > 1 ? 's' : ''}`;
+    }
+    
+    // Next period starts calculation
+    const predictedNext = latestCycle.predicted_next_cycle 
+      ? new Date(latestCycle.predicted_next_cycle)
+      : new Date(start.getTime() + cycleLengthVal * 24 * 60 * 60 * 1000);
+    predictedNext.setHours(0, 0, 0, 0);
+    
+    const diffToNext = Math.ceil((predictedNext.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+    
+    if (diffToNext > 0) {
+      nextPeriodStarts = `${diffToNext} Day${diffToNext > 1 ? 's' : ''}`;
+      nextPeriodStartsSubtitle = `Expected on ${predictedNext.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}`;
+    } else if (diffToNext === 0) {
+      nextPeriodStarts = "Today";
+      nextPeriodStartsSubtitle = "Period expected today";
+    } else {
+      nextPeriodStarts = "Overdue";
+      nextPeriodStartsSubtitle = `${Math.abs(diffToNext)} day${Math.abs(diffToNext) > 1 ? 's' : ''} overdue`;
+    }
+    
+    // Fertility window calculation (typically 5 days before ovulation until day after ovulation)
+    const ovulationDay = cycleLengthVal - 14;
+    const fertileStart = ovulationDay - 5;
+    const fertileEnd = ovulationDay + 1;
+    
+    if (day > 0 && day <= cycleLengthVal) {
+      if (day === ovulationDay) {
+        fertilityStatus = "Ovulation Day";
+        fertilityStatusSubtitle = "Peak fertility today! 🌟";
+      } else if (day >= fertileStart && day <= fertileEnd) {
+        fertilityStatus = "High Fertility";
+        fertilityStatusSubtitle = "Fertile window is open";
+      } else {
+        fertilityStatus = "Low Fertility";
+        fertilityStatusSubtitle = "Low chance of conception";
+      }
+    } else if (day > cycleLengthVal) {
+      fertilityStatus = "Low Fertility";
+      fertilityStatusSubtitle = "Cycle is currently late";
+    }
+  }
+
+  // Sleep duration calculator
+  const lastSleepDuration = (() => {
+    if (!babySleepLogs || babySleepLogs.length === 0) return "No sleep logged";
+    const lastLog = babySleepLogs[0];
+    if (!lastLog.start_time || !lastLog.end_time) return "Logged (ongoing)";
+    const start = new Date(lastLog.start_time);
+    const end = new Date(lastLog.end_time);
+    const diffMs = end.getTime() - start.getTime();
+    if (isNaN(diffMs) || diffMs <= 0) return "Logged (ongoing)";
+    const diffMins = Math.floor(diffMs / (1000 * 60));
+    const hrs = Math.floor(diffMins / 60);
+    const mins = diffMins % 60;
+    if (hrs > 0) {
+      return `${hrs}h ${mins}m`;
+    }
+    return `${mins}m`;
+  })();
+
   // Copy code helper
   const handleCopyCode = async () => {
     if (!myPartnerCode) {
@@ -215,6 +326,7 @@ export function UserDashboardClient({
           mode: selectedOnboardingMode,
           averageCycleLength: selectedOnboardingMode === "tracking" ? cycleLength : undefined,
           averagePeriodLength: selectedOnboardingMode === "tracking" ? periodLength : undefined,
+          lastPeriodStartDate: selectedOnboardingMode === "tracking" ? lastPeriodStartDate : undefined,
           conceptionDate: selectedOnboardingMode === "pregnant" ? conceptionDate : undefined,
           expectedDueDate: undefined, // calculated server side
           babyNickname: selectedOnboardingMode === "pregnant" ? babyNickname : undefined,
@@ -278,6 +390,28 @@ export function UserDashboardClient({
         setTimeout(() => setSuccessMsg(""), 3000);
       } else {
         setErrorMsg(res?.error || "Failed to log symptom.");
+      }
+    });
+  };
+
+  // Submit new cycle start date
+  const handleLogNewCycle = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newCycleDate) return;
+    setErrorMsg("");
+    
+    startTransition(async () => {
+      try {
+        const res = await logNewCycleStartAction(newCycleDate);
+        if (res?.success) {
+          setSuccessMsg("New cycle started successfully!");
+          setActiveLoggingModal(null);
+          window.location.reload();
+        } else {
+          setErrorMsg(res?.error || "Failed to start a new cycle.");
+        }
+      } catch (err: any) {
+        setErrorMsg("An unexpected error occurred. Please try again.");
       }
     });
   };
@@ -606,29 +740,42 @@ export function UserDashboardClient({
             </h3>
 
             {selectedOnboardingMode === "tracking" && (
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                <div className="space-y-2">
-                  <label className="text-sm font-semibold text-slate-700 block">Average Cycle Length (Days)</label>
-                  <input 
-                    type="number" 
-                    min={20} 
-                    max={45} 
-                    value={cycleLength} 
-                    onChange={(e) => setCycleLength(parseInt(e.target.value))} 
-                    className="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm focus:border-brand focus:ring-1 focus:ring-brand outline-none"
-                  />
-                  <p className="text-xs text-muted-foreground">Standard average is 28 days.</p>
+              <div className="space-y-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                  <div className="space-y-2">
+                    <label className="text-sm font-semibold text-slate-700 block">Average Cycle Length (Days)</label>
+                    <input 
+                      type="number" 
+                      min={21} 
+                      max={35} 
+                      value={cycleLength} 
+                      onChange={(e) => setCycleLength(parseInt(e.target.value))} 
+                      className="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm focus:border-brand focus:ring-1 focus:ring-brand outline-none"
+                    />
+                    <p className="text-xs text-muted-foreground">Standard average is 28 days.</p>
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-sm font-semibold text-slate-700 block">Average Period Duration (Days)</label>
+                    <input 
+                      type="number" 
+                      min={1} 
+                      max={10} 
+                      value={periodLength} 
+                      onChange={(e) => setPeriodLength(parseInt(e.target.value))} 
+                      className="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm focus:border-brand focus:ring-1 focus:ring-brand outline-none"
+                    />
+                  </div>
                 </div>
                 <div className="space-y-2">
-                  <label className="text-sm font-semibold text-slate-700 block">Average Period Duration (Days)</label>
+                  <label className="text-sm font-semibold text-slate-700 block">Last Period Start Date *</label>
                   <input 
-                    type="number" 
-                    min={2} 
-                    max={15} 
-                    value={periodLength} 
-                    onChange={(e) => setPeriodLength(parseInt(e.target.value))} 
+                    type="date" 
+                    required 
+                    value={lastPeriodStartDate} 
+                    onChange={(e) => setLastPeriodStartDate(e.target.value)} 
                     className="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm focus:border-brand focus:ring-1 focus:ring-brand outline-none"
                   />
+                  <p className="text-xs text-muted-foreground">This helps us calculate your current cycle day and fertile window.</p>
                 </div>
               </div>
             )}
@@ -816,25 +963,44 @@ export function UserDashboardClient({
                 <h3 className="font-extrabold text-lg text-slate-900 flex items-center gap-2">
                   <Activity className="w-5 h-5 text-rose-500" /> Cycle Overview
                 </h3>
-                <span className="text-xs text-muted-foreground font-semibold">Predicted based on average ({profile.phone_number || "28"} days)</span>
+                <span className="text-xs text-muted-foreground font-semibold">Predicted based on average ({profile.average_cycle_length || 28} days)</span>
               </div>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 text-center">
-                <div className="bg-rose-50/50 rounded-2xl p-5 border border-rose-100/50">
-                  <p className="text-xs text-rose-700 font-bold uppercase tracking-wider">Current Cycle Day</p>
-                  <p className="text-3xl font-black text-rose-600 mt-2">Day 14</p>
-                  <p className="text-xs text-rose-500 mt-1">Ovulation Expected Today</p>
+              
+              {!latestCycle ? (
+                <div className="bg-rose-50/30 border border-rose-100 rounded-2xl p-6 text-center space-y-4">
+                  <p className="text-sm font-semibold text-slate-700">No active cycle period has been logged yet.</p>
+                  <p className="text-xs text-muted-foreground max-w-md mx-auto">
+                    To start tracking your fertile window, current cycle day, and predicting your next period, please log the start date of your last period.
+                  </p>
+                  <button
+                    onClick={() => {
+                      setTrackingModalTab("new_cycle");
+                      setActiveLoggingModal("tracking");
+                    }}
+                    className="bg-rose-650 hover:bg-rose-700 text-white text-xs font-bold px-4 py-2.5 rounded-xl shadow-sm cursor-pointer"
+                  >
+                    Log Period Start Date
+                  </button>
                 </div>
-                <div className="bg-pink-50/50 rounded-2xl p-5 border border-pink-100/50">
-                  <p className="text-xs text-pink-700 font-bold uppercase tracking-wider">Next Period Starts</p>
-                  <p className="text-3xl font-black text-pink-600 mt-2">14 Days</p>
-                  <p className="text-xs text-pink-500 mt-1">Approx. Cycle Length</p>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 text-center">
+                  <div className="bg-rose-50/50 rounded-2xl p-5 border border-rose-100/50">
+                    <p className="text-xs text-rose-700 font-bold uppercase tracking-wider">Current Cycle Day</p>
+                    <p className="text-3xl font-black text-rose-600 mt-2">{currentCycleDay}</p>
+                    <p className="text-xs text-rose-500 mt-1">{currentCycleDaySubtitle}</p>
+                  </div>
+                  <div className="bg-pink-50/50 rounded-2xl p-5 border border-pink-100/50">
+                    <p className="text-xs text-pink-700 font-bold uppercase tracking-wider">Next Period Starts</p>
+                    <p className="text-3xl font-black text-pink-600 mt-2">{nextPeriodStarts}</p>
+                    <p className="text-xs text-pink-500 mt-1">{nextPeriodStartsSubtitle}</p>
+                  </div>
+                  <div className="bg-amber-50/50 rounded-2xl p-5 border border-amber-100/50">
+                    <p className="text-xs text-amber-700 font-bold uppercase tracking-wider">Fertility Status</p>
+                    <p className="text-xl font-extrabold text-amber-600 mt-3.5 uppercase tracking-wide">{fertilityStatus}</p>
+                    <p className="text-xs text-amber-500 mt-1">{fertilityStatusSubtitle}</p>
+                  </div>
                 </div>
-                <div className="bg-amber-50/50 rounded-2xl p-5 border border-amber-100/50">
-                  <p className="text-xs text-amber-700 font-bold uppercase tracking-wider">Fertility Status</p>
-                  <p className="text-xl font-extrabold text-amber-600 mt-3.5 uppercase tracking-wide">High Fertility</p>
-                  <p className="text-xs text-amber-500 mt-1">Fertile window is open</p>
-                </div>
-              </div>
+              )}
               
               {/* List cycle symptoms logged */}
               <div className="space-y-3 pt-2">
@@ -967,7 +1133,7 @@ export function UserDashboardClient({
                 <div className="bg-indigo-50/50 border border-indigo-100 rounded-2xl p-4 text-center">
                   <p className="text-[10px] uppercase font-bold text-indigo-700">Last Sleep Duration</p>
                   <p className="text-base font-extrabold text-slate-800 mt-2">
-                    {babySleepLogs[0] ? "Log stored" : "No sleep logged"}
+                    {lastSleepDuration}
                   </p>
                 </div>
                 <div className="bg-emerald-50/50 border border-emerald-100 rounded-2xl p-4 text-center">
@@ -1051,14 +1217,27 @@ export function UserDashboardClient({
                       {connectedPartner.partner_mode === "pregnant" && (
                         <div>
                           <p className="text-xs font-bold text-slate-500">Pregnancy Stage</p>
-                          <p className="text-xl font-extrabold text-slate-800 mt-1">Week 14</p>
-                          <p className="text-[10px] text-muted-foreground">Baby size of a Lime 🍋</p>
+                          <p className="text-xl font-extrabold text-slate-800 mt-1">
+                            {calculatePregnancyWeek() ? `Week ${calculatePregnancyWeek()?.weeks}` : "Not logged"}
+                          </p>
+                          <p className="text-[10px] text-muted-foreground">
+                            {calculatePregnancyWeek() 
+                              ? `Baby size of a ${getBabySizeInfo(calculatePregnancyWeek()?.weeks || 0)?.size} ${getBabySizeInfo(calculatePregnancyWeek()?.weeks || 0)?.icon || "👶"}`
+                              : "Log pregnancy details to start"}
+                          </p>
                         </div>
                       )}
                       {connectedPartner.partner_mode === "postpartum" && (
                         <div>
                           <p className="text-xs font-bold text-slate-500">Postpartum Care</p>
-                          <p className="text-xl font-extrabold text-slate-800 mt-1">Newborn logs active</p>
+                          <p className="text-xl font-extrabold text-slate-800 mt-1">
+                            {postpartumDetails?.baby_name ? `${postpartumDetails.baby_name}'s logs active` : "Newborn logs active"}
+                          </p>
+                          {postpartumDetails?.delivery_date && (
+                            <p className="text-[10px] text-muted-foreground">
+                              Born on {new Date(postpartumDetails.delivery_date).toLocaleDateString()}
+                            </p>
+                          )}
                         </div>
                       )}
                     </div>
@@ -1407,62 +1586,115 @@ export function UserDashboardClient({
             </div>
 
             {mode === "tracking" && (
-              <form onSubmit={handleLogSymptom} className="space-y-4">
-                <div className="space-y-1">
-                  <label className="text-xs font-semibold text-slate-700">Choose Symptom *</label>
-                  <select 
-                    required
-                    value={symptomType} 
-                    onChange={(e) => setSymptomType(e.target.value)}
-                    className="w-full rounded-xl border border-slate-200 px-3.5 py-2.5 text-xs outline-none focus:border-brand"
+              <div className="space-y-4">
+                <div className="flex border-b border-slate-100 pb-2 gap-4">
+                  <button
+                    type="button"
+                    onClick={() => setTrackingModalTab("symptom")}
+                    className={`text-xs font-bold pb-2 transition-all cursor-pointer ${
+                      trackingModalTab === "symptom" 
+                        ? "text-rose-600 border-b-2 border-rose-600" 
+                        : "text-slate-500 hover:text-slate-800"
+                    }`}
                   >
-                    <option value="">-- Choose one --</option>
-                    <option value="cramps">Severe Cramps ⚡</option>
-                    <option value="headache">Headache 💆‍♀️</option>
-                    <option value="bloating">Bloating 🎈</option>
-                    <option value="fatigue">Extreme Fatigue 🥱</option>
-                    <option value="acne">Acne breakouts 🌟</option>
-                    <option value="mood_swings">Mood Swings 🎭</option>
-                    <option value="normal">Normal / Healthy Day ✨</option>
-                  </select>
-                </div>
-                
-                <div className="space-y-1">
-                  <label className="text-xs font-semibold text-slate-700 block">Severity (1-5)</label>
-                  <input 
-                    type="range" 
-                    min={1} 
-                    max={5} 
-                    value={symptomSeverity} 
-                    onChange={(e) => setSymptomSeverity(parseInt(e.target.value))}
-                    className="w-full accent-brand"
-                  />
-                  <div className="flex justify-between text-[10px] text-muted-foreground font-bold">
-                    <span>Mild</span>
-                    <span>Moderate</span>
-                    <span>Severe</span>
-                  </div>
+                    Log Symptom
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setTrackingModalTab("new_cycle")}
+                    className={`text-xs font-bold pb-2 transition-all cursor-pointer ${
+                      trackingModalTab === "new_cycle" 
+                        ? "text-rose-600 border-b-2 border-rose-600" 
+                        : "text-slate-500 hover:text-slate-800"
+                    }`}
+                  >
+                    Start New Cycle
+                  </button>
                 </div>
 
-                <div className="space-y-1">
-                  <label className="text-xs font-semibold text-slate-700">Notes (Optional)</label>
-                  <input 
-                    type="text" 
-                    placeholder="e.g. cramps mostly in morning" 
-                    value={symptomNotes}
-                    onChange={(e) => setSymptomNotes(e.target.value)}
-                    className="w-full rounded-xl border border-slate-200 px-3.5 py-2.5 text-xs outline-none focus:border-brand"
-                  />
-                </div>
+                {trackingModalTab === "symptom" ? (
+                  <form onSubmit={handleLogSymptom} className="space-y-4">
+                    <div className="space-y-1">
+                      <label className="text-xs font-semibold text-slate-700">Choose Symptom *</label>
+                      <select 
+                        required
+                        value={symptomType} 
+                        onChange={(e) => setSymptomType(e.target.value)}
+                        className="w-full rounded-xl border border-slate-200 px-3.5 py-2.5 text-xs outline-none focus:border-brand"
+                      >
+                        <option value="">-- Choose one --</option>
+                        <option value="cramps">Severe Cramps ⚡</option>
+                        <option value="headache">Headache 💆‍♀️</option>
+                        <option value="bloating">Bloating 🎈</option>
+                        <option value="fatigue">Extreme Fatigue 🥱</option>
+                        <option value="acne">Acne breakouts 🌟</option>
+                        <option value="mood_swings">Mood Swings 🎭</option>
+                        <option value="normal">Normal / Healthy Day ✨</option>
+                      </select>
+                    </div>
+                    
+                    <div className="space-y-1">
+                      <label className="text-xs font-semibold text-slate-700 block">Severity (1-5)</label>
+                      <input 
+                        type="range" 
+                        min={1} 
+                        max={5} 
+                        value={symptomSeverity} 
+                        onChange={(e) => setSymptomSeverity(parseInt(e.target.value))}
+                        className="w-full accent-brand"
+                      />
+                      <div className="flex justify-between text-[10px] text-muted-foreground font-bold">
+                        <span>Mild</span>
+                        <span>Moderate</span>
+                        <span>Severe</span>
+                      </div>
+                    </div>
 
-                <button 
-                  type="submit" 
-                  disabled={isPending}
-                  className="w-full bg-brand text-white text-xs font-bold py-3 rounded-xl hover:bg-brand-deep cursor-pointer"
-                >
-                  {isPending ? "Logging..." : "Save Log"}
-                </button>
-              </form>
+                    <div className="space-y-1">
+                      <label className="text-xs font-semibold text-slate-700">Notes (Optional)</label>
+                      <input 
+                        type="text" 
+                        placeholder="e.g. cramps mostly in morning" 
+                        value={symptomNotes}
+                        onChange={(e) => setSymptomNotes(e.target.value)}
+                        className="w-full rounded-xl border border-slate-200 px-3.5 py-2.5 text-xs outline-none focus:border-brand"
+                      />
+                    </div>
+
+                    <button 
+                      type="submit" 
+                      disabled={isPending}
+                      className="w-full bg-brand text-white text-xs font-bold py-3 rounded-xl hover:bg-brand-deep cursor-pointer"
+                    >
+                      {isPending ? "Logging..." : "Save Log"}
+                    </button>
+                  </form>
+                ) : (
+                  <form onSubmit={handleLogNewCycle} className="space-y-4">
+                    <div className="space-y-1">
+                      <label className="text-xs font-semibold text-slate-700 block">Last Period Start Date *</label>
+                      <input 
+                        type="date" 
+                        required
+                        value={newCycleDate} 
+                        onChange={(e) => setNewCycleDate(e.target.value)}
+                        className="w-full rounded-xl border border-slate-200 px-3.5 py-2.5 text-xs outline-none focus:border-brand"
+                      />
+                      <p className="text-[10px] text-muted-foreground mt-1">
+                        Starting a new cycle automatically closes your ongoing cycle and begins predicting your next window.
+                      </p>
+                    </div>
+
+                    <button 
+                      type="submit" 
+                      disabled={isPending}
+                      className="w-full bg-rose-600 text-white text-xs font-bold py-3 rounded-xl hover:bg-rose-700 cursor-pointer"
+                    >
+                      {isPending ? "Starting Cycle..." : "Start New Cycle"}
+                    </button>
+                  </form>
+                )}
+              </div>
             )}
 
             {mode === "pregnant" && (

@@ -28,6 +28,7 @@ export async function setOnboardingModeAction(data: {
   mode: "tracking" | "pregnant" | "postpartum";
   averageCycleLength?: number;
   averagePeriodLength?: number;
+  lastPeriodStartDate?: string;
   conceptionDate?: string;
   expectedDueDate?: string;
   babyNickname?: string;
@@ -49,6 +50,26 @@ export async function setOnboardingModeAction(data: {
          WHERE id = ?`,
         [data.averageCycleLength || 28, data.averagePeriodLength || 5, userId]
       );
+
+      if (data.lastPeriodStartDate) {
+        const cycleLength = data.averageCycleLength || 28;
+        const periodLength = data.averagePeriodLength || 5;
+        const startDateObj = new Date(data.lastPeriodStartDate);
+        
+        // Calculate predicted next cycle date
+        const predictedDateObj = new Date(startDateObj);
+        predictedDateObj.setDate(predictedDateObj.getDate() + cycleLength);
+        const predictedNextCycleStr = predictedDateObj.toISOString().split("T")[0];
+
+        // Clear any existing cycle records for clean onboarding
+        await executeAction("DELETE FROM menstrual_cycles WHERE user_id = ?", [userId]);
+
+        await executeAction(
+          `INSERT INTO menstrual_cycles (user_id, start_date, cycle_length, period_length, predicted_next_cycle) 
+           VALUES (?, ?, ?, ?, ?)`,
+          [userId, data.lastPeriodStartDate, cycleLength, periodLength, predictedNextCycleStr]
+        );
+      }
     } else if (data.mode === "pregnant") {
       if (!data.conceptionDate) {
         return { success: false, error: "Conception date is required for pregnancy tracking." };
@@ -272,6 +293,57 @@ export async function logCycleSymptomAction(data: {
   } catch (error: any) {
     console.error("Log cycle symptom error:", error);
     return { success: false, error: error.message || "Failed to log symptom." };
+  }
+}
+
+/**
+ * Start a new menstrual cycle log (closes the previous active cycle and inserts a new one)
+ */
+export async function logNewCycleStartAction(startDate: string) {
+  try {
+    const userId = await getAuthenticatedUserId();
+    
+    // Retrieve average cycle details from profile
+    const profile = await getOne<{ average_cycle_length: number; average_period_length: number }>(
+      "SELECT average_cycle_length, average_period_length FROM profiles WHERE id = ?",
+      [userId]
+    );
+
+    const cycleLength = profile?.average_cycle_length || 28;
+    const periodLength = profile?.average_period_length || 5;
+
+    const startObj = new Date(startDate);
+    const predictedObj = new Date(startObj);
+    predictedObj.setDate(predictedObj.getDate() + cycleLength);
+    const predictedNextCycle = predictedObj.toISOString().split("T")[0];
+
+    // Find and close the previous active cycle
+    const previousActive = await getOne<{ id: string; start_date: string }>(
+      "SELECT id, start_date FROM menstrual_cycles WHERE user_id = ? AND end_date IS NULL ORDER BY start_date DESC LIMIT 1",
+      [userId]
+    );
+
+    if (previousActive) {
+      const activeStart = new Date(previousActive.start_date);
+      const computedCycleLength = Math.max(21, Math.min(35, Math.ceil((startObj.getTime() - activeStart.getTime()) / (1000 * 60 * 60 * 24))));
+      await executeAction(
+        "UPDATE menstrual_cycles SET end_date = ?, cycle_length = ? WHERE id = ?",
+        [startDate, computedCycleLength, previousActive.id]
+      );
+    }
+
+    // Insert the new cycle
+    await executeAction(
+      `INSERT INTO menstrual_cycles (user_id, start_date, cycle_length, period_length, predicted_next_cycle) 
+       VALUES (?, ?, ?, ?, ?)`,
+      [userId, startDate, cycleLength, periodLength, predictedNextCycle]
+    );
+
+    revalidatePath("/user/dashboard");
+    return { success: true };
+  } catch (error: any) {
+    console.error("Log new cycle start error:", error);
+    return { success: false, error: error.message || "Failed to start new cycle." };
   }
 }
 
