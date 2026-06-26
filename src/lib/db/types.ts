@@ -10,7 +10,7 @@ export interface Profile {
   weight?: number | null;
   created_at: string;
   updated_at: string;
-  current_cycle_mode?: string;
+  current_cycle_mode?: string | null;
   average_cycle_length?: number;
   average_period_length?: number;
   role: 'user' | 'admin' | 'expert';

@@ -22,10 +22,10 @@ export async function getProfileByEmail(email: string): Promise<Profile | null> 
 }
 
 export async function createProfile(data: Partial<Profile>): Promise<void> {
-  const { id, email, first_name, last_name, role, phone_number } = data;
+  const { id, email, first_name, last_name, role, phone_number, current_cycle_mode } = data;
   await executeAction(
-    'INSERT INTO profiles (id, email, first_name, last_name, role, phone_number) VALUES (?, ?, ?, ?, ?, ?)',
-    [id, email, first_name, last_name, role || 'user', phone_number]
+    'INSERT INTO profiles (id, email, first_name, last_name, role, phone_number, current_cycle_mode) VALUES (?, ?, ?, ?, ?, ?, ?)',
+    [id, email, first_name, last_name, role || 'user', phone_number, current_cycle_mode !== undefined ? current_cycle_mode : null]
   );
 }
 

@@ -45,6 +45,7 @@ export async function signupUserAction(prevState: SignupState | null, formData: 
       first_name: firstName,
       last_name: lastName,
       role: 'user',
+      current_cycle_mode: null,
     });
 
   } catch (error) {
