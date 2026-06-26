@@ -38,10 +38,12 @@ export function Footer() {
         <div className="grid grid-cols-1 gap-10 pt-16 pb-12 sm:grid-cols-2 lg:grid-cols-4">
           {/* Brand column */}
           <div className="space-y-5 sm:col-span-2 lg:col-span-1">
-            <div className="flex items-center gap-2.5">
-              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-brand to-brand-deep">
-                <Heart weight="fill" className="h-5 w-5 text-white" />
-              </div>
+            <div className="flex items-center gap-2">
+              <img 
+                src="/images/logo.png" 
+                alt="Elira Health Logo" 
+                className="h-8 w-8 object-contain"
+              />
               <span className="text-lg font-bold text-white">
                 Elira Health
               </span>

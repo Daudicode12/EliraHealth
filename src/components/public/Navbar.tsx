@@ -47,10 +47,12 @@ export function Navbar() {
           }`}
         >
           {/* Logo */}
-          <Link href="/" className="flex items-center gap-2.5 group">
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-brand to-brand-deep shadow-md shadow-brand/20 transition-transform group-hover:scale-105">
-              <Heart weight="fill" className="h-5 w-5 text-white" />
-            </div>
+          <Link href="/" className="flex items-center gap-2 group">
+            <img 
+              src="/images/logo.png" 
+              alt="Elira Health Logo" 
+              className="h-8 w-8 object-contain transition-transform duration-300 group-hover:scale-105"
+            />
             <span className="text-lg font-bold tracking-tight">
               <span className="gradient-text">Elira</span>{" "}
               <span className="text-foreground/80">Health</span>
