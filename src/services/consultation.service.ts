@@ -94,7 +94,7 @@ export const ConsultationService = {
   async getInProgressConsultations(specialistId: string): Promise<ConsultationWithDetails[]> {
     return await getMany<ConsultationWithDetails>(
       `SELECT 
-        c.id, c.appointment_id, c.patient_id, c.specialist_id,
+        c.id, c.appointment_id, c.client_id as patient_id, c.expert_id as specialist_id,
         c.status, c.started_at, c.ended_at, c.created_at, c.updated_at,
         p.first_name as patient_first_name,
         p.last_name as patient_last_name,
@@ -105,9 +105,9 @@ export const ConsultationService = {
         e.display_name as specialist_name
       FROM consultations c
       JOIN appointments a ON c.appointment_id = a.id
-      JOIN profiles p ON c.patient_id = p.id
-      JOIN experts e ON c.specialist_id = e.id
-      WHERE c.specialist_id = ? AND c.status = 'in_progress'
+      JOIN profiles p ON c.client_id = p.id
+      JOIN experts e ON c.expert_id = e.id
+      WHERE c.expert_id = ? AND c.status = 'in_progress'
       ORDER BY c.started_at DESC`,
       [specialistId]
     );
@@ -117,7 +117,7 @@ export const ConsultationService = {
   async getCompletedConsultations(specialistId: string): Promise<ConsultationWithDetails[]> {
     return await getMany<ConsultationWithDetails>(
       `SELECT 
-        c.id, c.appointment_id, c.patient_id, c.specialist_id,
+        c.id, c.appointment_id, c.client_id as patient_id, c.expert_id as specialist_id,
         c.status, c.started_at, c.ended_at, c.created_at, c.updated_at,
         p.first_name as patient_first_name,
         p.last_name as patient_last_name,
@@ -128,9 +128,9 @@ export const ConsultationService = {
         e.display_name as specialist_name
       FROM consultations c
       JOIN appointments a ON c.appointment_id = a.id
-      JOIN profiles p ON c.patient_id = p.id
-      JOIN experts e ON c.specialist_id = e.id
-      WHERE c.specialist_id = ? AND c.status = 'completed'
+      JOIN profiles p ON c.client_id = p.id
+      JOIN experts e ON c.expert_id = e.id
+      WHERE c.expert_id = ? AND c.status = 'completed'
       ORDER BY c.ended_at DESC`,
       [specialistId]
     );
@@ -157,7 +157,7 @@ export const ConsultationService = {
       return consultation.id;
     } else {
       const result = await executeAction(
-        `INSERT INTO consultations (appointment_id, patient_id, specialist_id, status, started_at) 
+        `INSERT INTO consultations (appointment_id, client_id, expert_id, status, started_at) 
          VALUES (?, ?, ?, 'in_progress', strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))`,
         [appointmentId, appointment.patient_id, specialistId]
       );
@@ -183,7 +183,7 @@ export const ConsultationService = {
   async getConsultationById(id: string): Promise<ConsultationWithDetails | null> {
     return await getOne<ConsultationWithDetails>(
       `SELECT 
-        c.id, c.appointment_id, c.patient_id, c.specialist_id,
+        c.id, c.appointment_id, c.client_id as patient_id, c.expert_id as specialist_id,
         c.status, c.started_at, c.ended_at, c.created_at, c.updated_at,
         p.first_name as patient_first_name,
         p.last_name as patient_last_name,
@@ -194,8 +194,8 @@ export const ConsultationService = {
         e.display_name as specialist_name
       FROM consultations c
       JOIN appointments a ON c.appointment_id = a.id
-      JOIN profiles p ON c.patient_id = p.id
-      JOIN experts e ON c.specialist_id = e.id
+      JOIN profiles p ON c.client_id = p.id
+      JOIN experts e ON c.expert_id = e.id
       WHERE c.id = ?`,
       [id]
     );
@@ -249,7 +249,7 @@ export const ConsultationService = {
   // Complete a consultation
   async completeConsultation(consultationId: string, specialistId: string, notes: Partial<ConsultationNote>): Promise<void> {
     const consultation = await getOne<ConsultationRecord>(
-      'SELECT * FROM consultations WHERE id = ? AND specialist_id = ?',
+      'SELECT * FROM consultations WHERE id = ? AND expert_id = ?',
       [consultationId, specialistId]
     );
     if (!consultation) throw new Error('Consultation not found');
@@ -272,12 +272,12 @@ export const ConsultationService = {
       message += ` A follow-up has been scheduled for ${notes.follow_up_date || 'a future date'}.`;
     }
     
-    const patient = await getProfileById(consultation.patient_id);
-    const specialist = await getExpertById(consultation.specialist_id);
+    const patient = await getProfileById(consultation.client_id);
+    const specialist = await getExpertById(consultation.expert_id);
 
     if (patient && patient.email && specialist) {
       await sendNotificationAndEmail({
-        userId: consultation.patient_id,
+        userId: consultation.client_id,
         emailTo: patient.email as string,
         emailSubject: "Elira Health - Consultation Completed",
         title: "Consultation Completed",
@@ -296,7 +296,7 @@ export const ConsultationService = {
   // Cancel a consultation
   async cancelConsultation(consultationId: string, specialistId: string): Promise<void> {
     await executeAction(
-      `UPDATE consultations SET status = 'cancelled' WHERE id = ? AND specialist_id = ?`,
+      `UPDATE consultations SET status = 'cancelled' WHERE id = ? AND expert_id = ?`,
       [consultationId, specialistId]
     );
   },
@@ -308,15 +308,15 @@ export const ConsultationService = {
         `SELECT COUNT(*) as count FROM appointments a
          LEFT JOIN consultations c ON c.appointment_id = a.id
          WHERE a.specialist_id = ? AND a.status = 'CONFIRMED'
-           AND (c.status IS NULL OR c.status = 'scheduled')`,
+           AND (c.status IS NULL OR c.status IN ('pending', 'confirmed', 'scheduled'))`,
         [specialistId]
       ),
       getOne<{ count: number }>(
-        `SELECT COUNT(*) as count FROM consultations WHERE specialist_id = ? AND status = 'in_progress'`,
+        `SELECT COUNT(*) as count FROM consultations WHERE expert_id = ? AND status = 'in_progress'`,
         [specialistId]
       ),
       getOne<{ count: number }>(
-        `SELECT COUNT(*) as count FROM consultations WHERE specialist_id = ? AND status = 'completed'`,
+        `SELECT COUNT(*) as count FROM consultations WHERE expert_id = ? AND status = 'completed'`,
         [specialistId]
       ),
     ]);
@@ -331,7 +331,7 @@ export const ConsultationService = {
   async getPatientConsultationHistory(patientId: string): Promise<(ConsultationWithDetails & { notes: ConsultationNote | null })[]> {
     const consultations = await getMany<ConsultationWithDetails>(
       `SELECT 
-        c.id, c.appointment_id, c.patient_id, c.specialist_id,
+        c.id, c.appointment_id, c.client_id as patient_id, c.expert_id as specialist_id,
         c.status, c.started_at, c.ended_at, c.created_at, c.updated_at,
         p.first_name as patient_first_name,
         p.last_name as patient_last_name,
@@ -342,9 +342,9 @@ export const ConsultationService = {
         e.display_name as specialist_name
       FROM consultations c
       JOIN appointments a ON c.appointment_id = a.id
-      JOIN profiles p ON c.patient_id = p.id
-      JOIN experts e ON c.specialist_id = e.id
-      WHERE c.patient_id = ?
+      JOIN profiles p ON c.client_id = p.id
+      JOIN experts e ON c.expert_id = e.id
+      WHERE c.client_id = ?
       ORDER BY c.created_at DESC`,
       [patientId]
     );
@@ -386,7 +386,7 @@ export const ConsultationService = {
       LEFT JOIN consultations c ON c.appointment_id = a.id
       WHERE a.patient_id = ?
         AND a.status = 'CONFIRMED'
-        AND (c.status IS NULL OR c.status IN ('scheduled', 'in_progress'))
+        AND (c.status IS NULL OR c.status IN ('pending', 'confirmed', 'scheduled', 'in_progress'))
       ORDER BY a.appointment_date ASC, a.start_time ASC`,
       [patientId]
     );
