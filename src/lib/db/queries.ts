@@ -83,8 +83,12 @@ export async function getExpertByUserId(userId: string): Promise<Expert | null> 
   return await getOne<Expert>('SELECT * FROM experts WHERE user_id = ?', [userId]);
 }
 
-export async function getExpertsByStatus(status: 'pending' | 'approved' | 'rejected' | 'suspended'): Promise<(Expert & { email: string; phone_number: string })[]> {
-  const dbStatus = status === 'pending' ? 'pending_review' : status;
+export async function getExpertsByStatus(status: 'pending' | 'approved' | 'rejected' | 'suspended' | 'incomplete'): Promise<(Expert & { email: string; phone_number: string })[]> {
+  let dbStatus = '';
+  if (status === 'pending') dbStatus = 'pending_review';
+  else if (status === 'incomplete') dbStatus = 'profile_incomplete';
+  else dbStatus = status;
+
   return await getMany<Expert & { email: string; phone_number: string }>(
     `SELECT e.*, p.email, p.phone_number
      FROM experts e 
@@ -187,6 +191,41 @@ export async function rejectExpert(expertId: string, reason: string): Promise<vo
   }
 }
 
+export async function requestMoreInfoExpert(expertId: string, reason: string): Promise<void> {
+  await executeAction(
+    `UPDATE experts 
+     SET profile_status = 'profile_incomplete', 
+         verification_status = 'pending',
+         rejection_reason = ? 
+     WHERE id = ?`, 
+    [reason, expertId]
+  );
+  
+  const expert = await getExpertById(expertId);
+  if (expert) {
+    await createNotification(expert.user_id, `Additional information requested for your profile.\n\nFeedback:\n${reason}`, "warning");
+    try {
+      const profile = await getOne<{ email: string; first_name: string; last_name: string }>(
+        'SELECT email, first_name, last_name FROM profiles WHERE id = ?', 
+        [expert.user_id]
+      );
+      if (profile && profile.email) {
+        const { sendDoctorInfoRequestEmail } = await import('@/lib/services/email');
+        const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+        await sendDoctorInfoRequestEmail({
+          email: profile.email,
+          firstName: profile.first_name || '',
+          lastName: profile.last_name || '',
+          message: reason,
+          profileUrl: `${baseUrl}/specialist/profile/complete`,
+        });
+      }
+    } catch (e) {
+      console.error('Failed to send info request email:', e);
+    }
+  }
+}
+
 export async function suspendExpert(expertId: string): Promise<void> {
   await executeAction(
     `UPDATE experts 
@@ -222,12 +261,15 @@ export async function getExpertStatusCounts(): Promise<Record<string, number>> {
     pending: 0,
     approved: 0,
     rejected: 0,
-    suspended: 0
+    suspended: 0,
+    incomplete: 0
   };
   
   counts.forEach(row => {
     if (row.profile_status === 'pending_review') {
       result.pending = row.count;
+    } else if (row.profile_status === 'profile_incomplete') {
+      result.incomplete = row.count;
     } else if (row.profile_status in result) {
       result[row.profile_status] = row.count;
     }
@@ -438,5 +480,18 @@ export async function createSpecialistByAdmin(data: {
       is_available: 1
     });
   }
+}
+
+export async function getAllConsultations(): Promise<any[]> {
+  return await getMany(
+    `SELECT c.*, 
+            p.first_name as patient_first_name, 
+            p.last_name as patient_last_name, 
+            e.display_name as specialist_name
+     FROM consultations c
+     JOIN profiles p ON c.client_id = p.id
+     JOIN experts e ON c.expert_id = e.id
+     ORDER BY c.created_at DESC`
+  );
 }
 

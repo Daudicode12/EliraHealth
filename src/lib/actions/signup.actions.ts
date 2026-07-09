@@ -76,6 +76,5 @@ export async function signupAction(prevState: SignupState | null, formData: Form
     return { success: false, message: "Database error. Please try again." };
   }
 
-  // Redirect after successfully setting cookie
-  redirect("/specialist/dashboard");
+  redirect("/specialist/profile/complete");
 }

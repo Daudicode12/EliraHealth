@@ -167,6 +167,16 @@ Run it:
 npx ts-node scripts/init-db.ts
 ```
 
+### Incremental Schema Migration (New Modules)
+
+If you have already initialized your database schema and want to migrate the new module tables/columns (such as `appointments`, `medical_records`, and columns on `experts` and `consultations`), we have created a dedicated **[migration.sql](file:///home/ogega/Projects/Eliraweb/migration.sql)** file.
+
+Run it against your remote Turso database using:
+```bash
+turso db shell elira-health < migration.sql
+```
+*Note: If some of the columns already exist in your database, you can run the `CREATE TABLE` and `CREATE INDEX` queries individually or ignore duplicate column errors.*
+
 ---
 
 ## 🔌 Step 5: Replace Supabase Client with Turso Client

@@ -25,7 +25,7 @@ export function DoctorSidebar({ logoutAction, profileStatus = "approved" }: { lo
       {/* Mobile Header */}
       <div className="lg:hidden flex items-center justify-between bg-slate-900 text-white p-4 sticky top-0 z-50 shadow-md">
         <div className="flex items-center gap-2 font-bold text-lg">
-          <Stethoscope className="text-emerald-400" />
+          <Stethoscope className="text-brand-blue" />
           Elira Specialist
         </div>
         <button onClick={() => setIsOpen(!isOpen)} className="p-1 hover:bg-white/10 rounded-md">
@@ -49,7 +49,7 @@ export function DoctorSidebar({ logoutAction, profileStatus = "approved" }: { lo
         ${isOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"}
       `}>
         <div className="hidden lg:flex items-center gap-3 px-6 py-8 font-bold text-xl text-white border-b border-white/10">
-          <div className="bg-gradient-to-br from-emerald-400 to-teal-600 text-slate-900 p-1.5 rounded-lg shadow-lg">
+          <div className="bg-gradient-to-br from-brand to-brand-blue text-white p-1.5 rounded-lg shadow-lg">
             <Stethoscope size={24} />
           </div>
           Elira Health
@@ -57,36 +57,47 @@ export function DoctorSidebar({ logoutAction, profileStatus = "approved" }: { lo
 
         <nav className="flex-1 flex flex-col gap-1.5 p-4 overflow-y-auto mt-4 lg:mt-0">
           <p className="px-3 text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Clinical Workspace</p>
-          {NAV.map(({ href, label, icon: Icon, isLockable }) => {
-            const isActive = pathname === href || pathname.startsWith(`${href}/`);
-            const isLocked = isLockable && profileStatus !== 'approved';
-            
-            return (
-              <Link
-                key={href}
-                href={isLocked ? "/specialist/dashboard" : href}
-                onClick={() => setIsOpen(false)}
-                className={`
-                  flex items-center justify-between px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200
-                  ${isActive 
-                    ? "bg-emerald-600/10 text-emerald-400 border border-emerald-500/20 shadow-sm" 
-                    : "hover:bg-white/5 hover:text-white"
-                  }
-                  ${isLocked ? "opacity-60 cursor-not-allowed" : ""}
-                `}
-              >
-                <div className="flex items-center gap-3">
-                  <Icon size={18} className={isActive ? "text-emerald-400" : "text-slate-400"} />
-                  <span>{label}</span>
-                </div>
-                {isLocked && (
-                  <span className="text-xs text-slate-500 font-semibold" title="Requires verification">
-                    🔒
-                  </span>
-                )}
-              </Link>
-            );
-          })}
+          {profileStatus === 'profile_incomplete' ? (
+            <Link
+              href="/specialist/profile/complete"
+              onClick={() => setIsOpen(false)}
+              className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 bg-brand/10 text-brand-blue border border-brand/20 shadow-sm"
+            >
+              <UserCog size={18} className="text-brand-blue" />
+              <span>Complete Profile</span>
+            </Link>
+          ) : (
+            NAV.map(({ href, label, icon: Icon, isLockable }) => {
+              const isActive = pathname === href || pathname.startsWith(`${href}/`);
+              const isLocked = isLockable && profileStatus !== 'approved';
+              
+              return (
+                <Link
+                  key={href}
+                  href={isLocked ? "/specialist/dashboard" : href}
+                  onClick={() => setIsOpen(false)}
+                  className={`
+                    flex items-center justify-between px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200
+                    ${isActive 
+                      ? "bg-brand/15 text-brand-blue border border-brand/20 shadow-sm" 
+                      : "hover:bg-white/5 hover:text-white"
+                    }
+                    ${isLocked ? "opacity-60 cursor-not-allowed" : ""}
+                  `}
+                >
+                  <div className="flex items-center gap-3">
+                    <Icon size={18} className={isActive ? "text-brand-blue" : "text-slate-400"} />
+                    <span>{label}</span>
+                  </div>
+                  {isLocked && (
+                    <span className="text-xs text-slate-500 font-semibold" title="Requires verification">
+                      🔒
+                    </span>
+                  )}
+                </Link>
+              );
+            })
+          )}
         </nav>
 
         <div className="p-4 border-t border-white/5 bg-black/20">

@@ -39,7 +39,7 @@ export async function loginUser(formData: FormData) {
     if (status === 'suspended') redirect("/specialist/account-suspended");
     redirect("/specialist/dashboard");
   }
-  redirect("/patient/dashboard");
+  redirect("/user/dashboard");
 }
 
 export async function signupExpert(formData: FormData) {

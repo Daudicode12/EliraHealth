@@ -1,27 +1,22 @@
 import { AppointmentService } from "@/services/appointment.service";
+import { getAllConsultations } from "@/lib/db/queries";
+import { 
+  approveAppointmentAction, 
+  rejectAppointmentAction,
+  approveConsultationAction,
+  rejectConsultationAction
+} from "@/lib/actions/admin";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-import { Calendar, CheckCircle, Clock, XCircle, UserX, AlertCircle } from "lucide-react";
+import Link from "next/link";
+import { Calendar, CheckCircle, Clock, XCircle, UserX, AlertCircle, MessageSquare } from "lucide-react";
+import { ExpandableApprovalCard } from "@/components/admin/ExpandableApprovalCard";
 
-const STATUS_ICONS: Record<string, any> = {
-  PENDING: <Clock size={14} className="text-yellow-600" />,
-  CONFIRMED: <CheckCircle size={14} className="text-blue-600" />,
-  COMPLETED: <CheckCircle size={14} className="text-green-600" />,
-  CANCELLED: <XCircle size={14} className="text-red-600" />,
-  NO_SHOW: <UserX size={14} className="text-gray-600" />,
-  RESCHEDULED: <AlertCircle size={14} className="text-orange-600" />,
-};
-
-const STATUS_STYLES: Record<string, string> = {
-  PENDING: "bg-yellow-50 text-yellow-700 border-yellow-200",
-  CONFIRMED: "bg-blue-50 text-blue-700 border-blue-200",
-  COMPLETED: "bg-green-50 text-green-700 border-green-200",
-  CANCELLED: "bg-red-50 text-red-700 border-red-200",
-  NO_SHOW: "bg-gray-50 text-gray-700 border-gray-200",
-  RESCHEDULED: "bg-orange-50 text-orange-700 border-orange-200",
-};
-
-export default async function AdminAppointmentsPage() {
+export default async function AdminAppointmentsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ tab?: string }>;
+}) {
   const token = (await cookies()).get("auth-token")?.value;
   let adminId = token?.replace("mock-token-", "") || 'system';
   if (token?.startsWith("mock-jwt-")) {
@@ -34,10 +29,45 @@ export default async function AdminAppointmentsPage() {
     redirect("/login");
   }
 
-  const [stats, appointments] = await Promise.all([
+  const resolvedParams = await searchParams;
+  const currentTab = resolvedParams.tab || "appointments";
+
+  // Actions
+  async function handleApproveAppointment(id: string) {
+    "use server";
+    await approveAppointmentAction(id);
+  }
+
+  async function handleRejectAppointment(id: string) {
+    "use server";
+    await rejectAppointmentAction(id);
+  }
+
+  async function handleApproveConsultation(id: string) {
+    "use server";
+    await approveConsultationAction(id);
+  }
+
+  async function handleRejectConsultation(id: string, reason: string) {
+    "use server";
+    await rejectConsultationAction(id, reason);
+  }
+
+  // Fetch metrics & lists
+  const [stats, rawAppointments, rawConsultations] = await Promise.all([
     AppointmentService.getAppointmentStats(),
-    AppointmentService.getAllAppointments({}, 100, 0)
+    AppointmentService.getAllAppointments({}, 100, 0),
+    getAllConsultations()
   ]);
+
+  const appointments = JSON.parse(JSON.stringify(rawAppointments));
+  const consultations = JSON.parse(JSON.stringify(rawConsultations));
+
+  // Tab configurations
+  const tabs = [
+    { id: "appointments", label: "General Appointments", count: appointments.length },
+    { id: "consultations", label: "Specialist Consultations", count: consultations.length },
+  ];
 
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
@@ -45,16 +75,16 @@ export default async function AdminAppointmentsPage() {
         <div>
           <h1 className="text-2xl font-bold text-slate-900 tracking-tight flex items-center gap-3">
             <Calendar className="text-blue-600" />
-            All Appointments
+            Bookings & Consultations
           </h1>
-          <p className="text-slate-500 mt-1">Monitor all patient and specialist appointments across the platform.</p>
+          <p className="text-slate-500 mt-1">Review, approve, and manage telehealth sessions and clinical bookings.</p>
         </div>
       </div>
 
-      {/* Stats Cards */}
+      {/* Stats Cards (Appointments specific stats) */}
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
         {[
-          { label: "Total", value: stats.totalAppointments, color: "text-slate-900", bg: "bg-slate-50" },
+          { label: "Total Appts", value: stats.totalAppointments, color: "text-slate-900", bg: "bg-slate-50" },
           { label: "Pending", value: stats.pendingAppointments, color: "text-yellow-600", bg: "bg-yellow-50" },
           { label: "Confirmed", value: stats.confirmedAppointments, color: "text-blue-600", bg: "bg-blue-50" },
           { label: "Completed", value: stats.completedAppointments, color: "text-green-600", bg: "bg-green-50" },
@@ -69,62 +99,78 @@ export default async function AdminAppointmentsPage() {
         ))}
       </div>
 
-      {/* Appointments List */}
-      <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
-        <div className="p-5 border-b border-slate-100 bg-slate-50/50 flex items-center gap-2">
-          <Calendar size={18} className="text-slate-400" />
-          <h2 className="font-bold text-slate-700 uppercase tracking-wider text-xs">Recent Appointments</h2>
-        </div>
-        
-        {appointments.length === 0 ? (
-          <div className="py-20 flex flex-col items-center justify-center bg-slate-50/30">
-            <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mb-4">
-              <Calendar className="text-slate-400" size={32} />
+      {/* Tabs selector */}
+      <div className="flex gap-2 p-1 bg-white border border-slate-200 rounded-xl w-fit shadow-sm overflow-x-auto max-w-full">
+        {tabs.map((tab) => (
+          <Link
+            key={tab.id}
+            href={`?tab=${tab.id}`}
+            className={`px-4 py-2 text-sm font-semibold transition-all duration-200 rounded-lg flex items-center gap-2 whitespace-nowrap ${
+              currentTab === tab.id
+                ? "bg-slate-100 text-slate-900 shadow-sm"
+                : "text-slate-500 hover:text-slate-700 hover:bg-slate-50"
+            }`}
+          >
+            {tab.label}
+            <span className={`px-2 py-0.5 rounded-full text-[10px] ${
+              currentTab === tab.id ? 'bg-white text-slate-900 shadow-sm' : 'bg-slate-100 text-slate-500'
+            }`}>
+              {tab.count}
+            </span>
+          </Link>
+        ))}
+      </div>
+
+      {/* Content list */}
+      <div>
+        {currentTab === "appointments" ? (
+          appointments.length === 0 ? (
+            <div className="py-20 flex flex-col items-center justify-center border-2 border-dashed border-slate-200 rounded-2xl bg-white/50">
+              <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mb-4">
+                <Calendar className="text-slate-400" size={32} />
+              </div>
+              <h3 className="text-lg font-bold text-slate-900">No appointments scheduled</h3>
+              <p className="text-slate-500 text-sm mt-1 max-w-sm text-center">
+                There are currently no general appointments in the database.
+              </p>
             </div>
-            <h3 className="text-lg font-bold text-slate-900">No appointments found</h3>
-            <p className="text-slate-500 text-sm mt-1 max-w-sm text-center">
-              There are currently no appointments scheduled in the system.
-            </p>
-          </div>
+          ) : (
+            <div className="space-y-4">
+              {appointments.map((appt: any) => (
+                <ExpandableApprovalCard
+                  key={appt.id}
+                  type="appointment"
+                  item={appt}
+                  onApprove={handleApproveAppointment}
+                  onReject={handleRejectAppointment}
+                />
+              ))}
+            </div>
+          )
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm text-left">
-              <thead className="bg-slate-50/50 text-slate-500 text-[11px] uppercase font-bold tracking-wider border-b border-slate-100">
-                <tr>
-                  <th className="px-6 py-4">Patient</th>
-                  <th className="px-6 py-4">Specialist</th>
-                  <th className="px-6 py-4">Date & Time</th>
-                  <th className="px-6 py-4">Status</th>
-                  <th className="px-6 py-4">Reason</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {appointments.map((appt: any) => (
-                  <tr key={appt.id} className="hover:bg-slate-50 transition-colors group">
-                    <td className="px-6 py-4 font-semibold text-slate-900">
-                      {appt.patient_first_name} {appt.patient_last_name}
-                    </td>
-                    <td className="px-6 py-4 font-medium text-slate-600">
-                      Dr. {appt.specialist_name}
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="font-bold text-slate-900">{new Date(appt.appointment_date).toLocaleDateString()}</div>
-                      <div className="text-slate-500 text-xs font-medium mt-0.5">{appt.start_time} - {appt.end_time}</div>
-                    </td>
-                    <td className="px-6 py-4">
-                      <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider shadow-sm ${STATUS_STYLES[appt.status]}`}>
-                        {STATUS_ICONS[appt.status]}
-                        {appt.status}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 text-slate-500 text-xs max-w-xs truncate" title={appt.reason_for_visit}>
-                      {appt.reason_for_visit || "N/A"}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          consultations.length === 0 ? (
+            <div className="py-20 flex flex-col items-center justify-center border-2 border-dashed border-slate-200 rounded-2xl bg-white/50">
+              <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mb-4">
+                <MessageSquare className="text-slate-400" size={32} />
+              </div>
+              <h3 className="text-lg font-bold text-slate-900">No specialist consultations</h3>
+              <p className="text-slate-500 text-sm mt-1 max-w-sm text-center">
+                There are currently no clinical consultations initialized in the database.
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {consultations.map((consult: any) => (
+                <ExpandableApprovalCard
+                  key={consult.id}
+                  type="consultation"
+                  item={consult}
+                  onApprove={handleApproveConsultation}
+                  onReject={handleRejectConsultation}
+                />
+              ))}
+            </div>
+          )
         )}
       </div>
     </div>

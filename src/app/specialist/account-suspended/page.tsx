@@ -53,7 +53,7 @@ export default async function AccountSuspendedPage() {
           <div>
             <h4 className="text-sm font-semibold text-slate-800">Need Assistance?</h4>
             <p className="text-slate-500 text-xs mt-1">
-              Please contact our support desk at <span className="font-semibold text-purple-600">support@elira-health.com</span> to request activation or clarify account queries.
+              Please contact our support desk at <span className="font-semibold text-brand">support@elira-health.com</span> to request activation or clarify account queries.
             </p>
           </div>
         </div>

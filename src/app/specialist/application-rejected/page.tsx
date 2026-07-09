@@ -2,7 +2,8 @@
 import { getExpertByUserId } from "@/lib/db/queries";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-import { AlertOctagon, ArrowRight, UserCog } from "lucide-react";
+import { AlertOctagon, ArrowRight, UserCog, LogOut } from "lucide-react";
+import { logoutAction } from "@/lib/actions/auth.actions";
 
 export default async function ApplicationRejectedPage() {
   const token = (await cookies()).get("auth-token")?.value;
@@ -59,16 +60,24 @@ export default async function ApplicationRejectedPage() {
           You may review and update your clinical credentials to resubmit your application for verification.
         </p>
 
-        {/* Action Button */}
-        <div className="pt-2">
+        {/* Action Buttons */}
+        <div className="pt-2 flex flex-col gap-2">
           <a
             href="/specialist/profile/complete"
-            className="flex items-center justify-center gap-2 w-full px-5 py-3 bg-purple-600 hover:bg-purple-700 active:bg-purple-800 text-white font-bold rounded-xl shadow-md transition-colors cursor-pointer text-sm"
+            className="flex items-center justify-center gap-2 w-full px-5 py-3 bg-brand hover:bg-brand-deep active:bg-brand-deep text-white font-bold rounded-xl shadow-md transition-colors cursor-pointer text-sm"
           >
             <UserCog size={18} />
             Update Profile & Resubmit
             <ArrowRight size={16} />
           </a>
+          <form action={logoutAction}>
+            <button
+              type="submit"
+              className="w-full px-5 py-3 border border-slate-200 hover:bg-slate-50 text-slate-700 font-bold rounded-xl transition-colors cursor-pointer text-sm"
+            >
+              Sign Out
+            </button>
+          </form>
         </div>
       </div>
     </div>

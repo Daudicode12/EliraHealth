@@ -76,20 +76,20 @@ export function SignupForm() {
       <button
         type="submit"
         disabled={isPending}
-        className="w-full bg-purple-600 hover:bg-purple-700 disabled:bg-purple-300 text-white font-medium py-3 px-4 rounded-lg transition-colors duration-200 flex items-center justify-center cursor-pointer"
+        className="w-full bg-gradient-to-r from-brand to-brand-deep hover:shadow-lg hover:shadow-brand/25 disabled:opacity-60 text-white font-medium py-3 px-4 rounded-lg transition-all duration-200 flex items-center justify-center cursor-pointer"
       >
         {isPending ? "Creating Account..." : "Create Specialist Account"}
       </button>
 
       <p className="text-center text-sm text-gray-600">
         Already have an account?{" "}
-        <Link href="/login" className="text-purple-600 hover:text-purple-700 font-medium">
+        <Link href="/login" className="text-brand hover:underline font-medium">
           Sign in
         </Link>
       </p>
 
       <p className="text-xs text-gray-500 text-center leading-relaxed">
-        By signing up, you can access your dashboard immediately and complete your profile credentials later.
+        By signing up, you will be guided to complete your profile credentials to submit your application for verification.
       </p>
     </form>
   );
