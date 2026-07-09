@@ -21,13 +21,21 @@ export async function POST(req: NextRequest) {
     // In a real app, we'd verify the password here.
     // For this implementation, we'll assume any password works if the email exists.
     
+    // Generate a proper mock-jwt token that roles.ts expects
+    const payload = JSON.stringify({
+      userId: profile.id,
+      role: profile.role,
+      status: profile.status || 'active'
+    });
+    const mockToken = `mock-jwt-\${Buffer.from(payload).toString('base64')}`;
+    
     const response = NextResponse.json({
       userId: profile.id,
       role: profile.role,
-      token: `mock-token-${profile.id}`,
+      token: mockToken,
     });
     
-    response.cookies.set('auth-token', `mock-token-${profile.id}`, {
+    response.cookies.set('auth-token', mockToken, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
