@@ -3,6 +3,7 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { getProfileById } from "@/lib/db/queries";
 import { logoutAction } from "@/lib/actions/auth.actions";
+import { getServerSession } from "@/lib/auth/server-session";
 import Link from "next/link";
 
 export const metadata = {
@@ -18,14 +19,14 @@ export default async function UserDashboardPage() {
     redirect("/login");
   }
 
+  const session = await getServerSession();
+
   let profileName = "User";
   let profileEmail = "";
 
   try {
-    const payloadStr = token.replace("mock-jwt-", "");
-    const decoded = JSON.parse(Buffer.from(payloadStr, "base64").toString("utf-8"));
-    if (decoded?.id) {
-      const profile = await getProfileById(decoded.id);
+    if (session?.userId) {
+      const profile = await getProfileById(session.userId);
       if (profile) {
         profileName = `${profile.first_name} ${profile.last_name}`;
         profileEmail = profile.email || "";

@@ -1,3 +1,4 @@
+import { getServerSession } from "@/lib/auth/server-session";
 import { 
   getExpertsByStatus, 
   approveExpert, 
@@ -30,13 +31,8 @@ export default async function AdminDoctorsPage({
   async function handleApprove(id: string) {
     "use server";
     const token = (await cookies()).get("auth-token")?.value;
-    let adminId = token?.replace("mock-token-", "") || 'system';
-    if (token?.startsWith("mock-jwt-")) {
-      try {
-        const decoded = JSON.parse(Buffer.from(token.replace("mock-jwt-", ""), "base64").toString("utf-8"));
-        adminId = decoded.id;
-      } catch(e) {}
-    }
+    const session = await getServerSession();
+    let adminId = session?.userId || 'system';
     await approveExpert(id, adminId);
     revalidatePath("/admin/doctors");
   }

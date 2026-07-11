@@ -5,7 +5,7 @@ import { CreateAppointmentSchema } from "@/lib/types/appointment";
 import { getOne } from "@/lib/db/client";
 
 export async function POST(req: NextRequest) {
-  const auth = requirePatient(req);
+  const auth = await requirePatient(req);
   if (auth instanceof NextResponse) return auth;
 
   try {

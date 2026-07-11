@@ -1,3 +1,4 @@
+import { getServerSession } from "@/lib/auth/server-session";
 import { AppointmentService } from "@/services/appointment.service";
 import { getAllConsultations } from "@/lib/db/queries";
 import { 
@@ -18,17 +19,11 @@ export default async function AdminAppointmentsPage({
   searchParams: Promise<{ tab?: string }>;
 }) {
   const token = (await cookies()).get("auth-token")?.value;
-  let adminId = token?.replace("mock-token-", "") || 'system';
-  if (token?.startsWith("mock-jwt-")) {
-    try {
-      const decoded = JSON.parse(Buffer.from(token.replace("mock-jwt-", ""), "base64").toString("utf-8"));
-      adminId = decoded.id;
-      if (decoded.role !== 'admin') redirect("/login");
-    } catch(e) {}
-  } else {
+  const session = await getServerSession();
+  let userId = session?.userId || 'system';
+  if (!userId) {
     redirect("/login");
   }
-
   const resolvedParams = await searchParams;
   const currentTab = resolvedParams.tab || "appointments";
 

@@ -1,5 +1,8 @@
 "use server";
 
+import { signAccessToken } from '@/lib/auth/jwt';
+import { getServerSession } from '@/lib/auth/server-session';
+
 import { 
   createConsultation, 
   sendConsultationMessage, 
@@ -76,22 +79,8 @@ export async function completeSpecialistOnboarding(data: {
   hourlyRate: number;
   practicingCertificateUrl?: string;
 }) {
-  const token = (await cookies()).get("auth-token")?.value;
-  let userId = '';
-  
-  if (token) {
-    const payloadStr = token.replace("mock-jwt-", "").replace("mock-token-", "");
-    try {
-      if (token.startsWith("mock-jwt-")) {
-        const decoded = JSON.parse(Buffer.from(payloadStr, "base64").toString("utf-8"));
-        userId = decoded.id;
-      } else {
-        userId = payloadStr;
-      }
-    } catch (e) {
-      userId = payloadStr;
-    }
-  }
+  const session = await getServerSession();
+  const userId = session?.userId;
 
   if (!userId) {
     return { success: false, error: "Not authenticated" };
@@ -136,13 +125,13 @@ export async function completeSpecialistOnboarding(data: {
   await createNotification(userId, "Your credentials have been submitted for review.", "info");
 
   // 4. Update the auth JWT cookie
-  const payload = Buffer.from(JSON.stringify({
-    id: userId,
+  const newToken = signAccessToken({
+      userId: userId,
+      email: null,
     role: 'expert',
     status: 'pending_review'
-  })).toString('base64');
-  
-  (await cookies()).set("auth-token", `mock-jwt-${payload}`, {
+  });
+  (await cookies()).set("auth-token", newToken, {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
     sameSite: "lax",

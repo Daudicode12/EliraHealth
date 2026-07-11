@@ -25,9 +25,14 @@ export async function middleware(request: NextRequest) {
   }
 
   try {
-    // Decode the mock JWT payload
-    const payloadStr = token.replace("mock-jwt-", "");
-    const decoded = JSON.parse(Buffer.from(payloadStr, "base64").toString("utf-8"));
+    // Decode standard JWT payload
+    const parts = token.split('.');
+    if (parts.length !== 3) throw new Error("Invalid token format");
+    
+    // Base64url to base64
+    const base64 = parts[1].replace(/-/g, '+').replace(/_/g, '/');
+    const payloadStr = atob(base64);
+    const decoded = JSON.parse(payloadStr);
     const { role, status } = decoded;
 
     // Specialist Route Protection

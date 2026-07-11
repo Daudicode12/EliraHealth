@@ -1,4 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
+import { verifyToken } from "./jwt";
+import { getOne } from "../db/queries";
+import { Profile } from "../db/types";
 
 export interface SessionData {
   userId: string;
@@ -6,53 +9,66 @@ export interface SessionData {
   status: string;
 }
 
-export function getSession(req: NextRequest): SessionData | null {
-  // Check cookie first (for Web Portal)
+export async function getSession(req: NextRequest): Promise<SessionData | NextResponse> {
+  const authHeader = req.headers.get("authorization");
   let token = req.cookies.get("auth-token")?.value;
-  
-  // Fallback to Authorization header (for Mobile App / Flutter Web)
+
+  if (authHeader && authHeader.startsWith("Bearer ")) {
+    token = authHeader.substring(7);
+  }
+
   if (!token) {
-    const authHeader = req.headers.get("authorization");
-    if (authHeader && authHeader.startsWith("Bearer ")) {
-      token = authHeader.substring(7);
-    }
+    return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
   }
 
-  if (!token || !token.startsWith("mock-jwt-")) return null;
-
-  try {
-    const payloadStr = token.replace("mock-jwt-", "");
-    const decoded = JSON.parse(Buffer.from(payloadStr, "base64").toString("utf-8"));
-    return decoded as SessionData;
-  } catch (error) {
-    return null;
+  const payload = verifyToken(token);
+  if (!payload) {
+    return NextResponse.json({ success: false, error: "Unauthorized: Invalid or expired token" }, { status: 401 });
   }
+
+  // Database verification
+  const profile = await getOne<Profile>("SELECT id, status, role FROM profiles WHERE id = ?", [payload.userId]);
+
+  if (!profile) {
+    return NextResponse.json({ success: false, error: "Unauthorized: User not found" }, { status: 401 });
+  }
+
+  const status = profile.status || "active";
+  if (status === "deleted" || status === "suspended" || status === "inactive") {
+    return NextResponse.json({ success: false, error: `Unauthorized: User is ${status}` }, { status: 403 });
+  }
+
+  return {
+    userId: profile.id,
+    role: profile.role,
+    status: status
+  };
 }
 
-export function requirePatient(req: NextRequest): { userId: string } | NextResponse {
-  const session = getSession(req);
+export async function requirePatient(req: NextRequest): Promise<{ userId: string } | NextResponse> {
+  const sessionOrError = await getSession(req);
   
-  if (!session) {
-    return NextResponse.json({ success: false, error: "Unauthorized: Missing or invalid token" }, { status: 401 });
+  if (sessionOrError instanceof NextResponse) {
+    return sessionOrError;
   }
 
-  if (session.role !== "user") {
-    return NextResponse.json({ success: false, error: "Forbidden: Patient access required" }, { status: 403 });
+  if (sessionOrError.role !== "user") {
+    return NextResponse.json({ success: false, error: "Forbidden" }, { status: 403 });
   }
 
-  return { userId: session.userId };
+  return { userId: sessionOrError.userId };
 }
 
-export function requireAdmin(req: NextRequest): { adminId: string } | NextResponse {
-  const session = getSession(req);
+export async function requireAdmin(req: NextRequest): Promise<{ adminId: string } | NextResponse> {
+  const sessionOrError = await getSession(req);
   
-  if (!session) {
-    return NextResponse.json({ success: false, error: "Unauthorized: Missing or invalid token" }, { status: 401 });
+  if (sessionOrError instanceof NextResponse) {
+    return sessionOrError;
   }
 
-  if (session.role !== "admin") {
-    return NextResponse.json({ success: false, error: "Forbidden: Admin access required" }, { status: 403 });
+  if (sessionOrError.role !== "admin") {
+    return NextResponse.json({ success: false, error: "Forbidden" }, { status: 403 });
   }
 
-  return { adminId: session.userId };
+  return { adminId: sessionOrError.userId };
 }

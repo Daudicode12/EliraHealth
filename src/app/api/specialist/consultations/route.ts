@@ -1,24 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { requireSpecialist } from '@/lib/auth/specialist';
 import { ConsultationService } from '@/services/consultation.service';
 import { getExpertByUserId } from '@/lib/db/queries';
 
-function getUserIdFromToken(token: string | undefined): string | null {
-  if (!token) return null;
-  let userId = token.replace('mock-token-', '');
-  if (token.startsWith('mock-jwt-')) {
-    try {
-      const decoded = JSON.parse(Buffer.from(token.replace('mock-jwt-', ''), 'base64').toString('utf-8'));
-      userId = decoded.id;
-    } catch(e) { return null; }
-  }
-  return userId || null;
-}
 
 export async function GET(req: NextRequest) {
   try {
-    const token = req.cookies.get('auth-token')?.value;
-    const userId = getUserIdFromToken(token);
-    if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const auth = await requireSpecialist(req);
+    if (auth instanceof NextResponse) return auth;
+    const userId = auth.userId;
+
 
     const expert = await getExpertByUserId(userId);
     if (!expert) return NextResponse.json({ error: 'Specialist not found' }, { status: 404 });

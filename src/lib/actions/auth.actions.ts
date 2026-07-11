@@ -1,5 +1,7 @@
 "use server";
 
+import { signAccessToken } from '@/lib/auth/jwt';
+
 import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
 import { getProfileByEmail, getExpertByUserId } from "@/lib/db/queries";
@@ -48,13 +50,12 @@ export async function loginAction(formData: FormData) {
     }
 
     // Create a simple payload. In a real app, this would be a signed JWT.
-    const payload = Buffer.from(JSON.stringify({
-      id: profile.id,
+    const token = signAccessToken({
+      userId: profile.id,
+      email: null,
       role: profile.role,
       status: status
-    })).toString('base64');
-
-    const token = `mock-jwt-${payload}`;
+    });
     const cookieStore = await cookies();
     cookieStore.set("auth-token", token, {
       httpOnly: true,

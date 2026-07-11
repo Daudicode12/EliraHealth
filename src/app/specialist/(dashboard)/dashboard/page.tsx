@@ -4,25 +4,13 @@ import { getSpecialistDashboardStats } from "@/lib/db/specialistQueries";
 import { AppointmentService } from "@/services/appointment.service";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
+import { getServerSession } from "@/lib/auth/server-session";
 import { Users, FileText, CalendarCheck, Clock, Stethoscope, ShieldCheck, Sparkles, Lock } from "lucide-react";
 
 export default async function DoctorDashboard() {
   const token = (await cookies()).get("auth-token")?.value;
-  let userId = '';
-  
-  if (token) {
-    const payloadStr = token.replace("mock-jwt-", "").replace("mock-token-", "");
-    try {
-      if (token.startsWith("mock-jwt-")) {
-        const decoded = JSON.parse(Buffer.from(payloadStr, "base64").toString("utf-8"));
-        userId = decoded.id;
-      } else {
-        userId = payloadStr;
-      }
-    } catch (e) {
-      userId = payloadStr;
-    }
-  }
+  const session = await getServerSession();
+  const userId = session?.userId;
 
   if (!userId) redirect("/login");
 

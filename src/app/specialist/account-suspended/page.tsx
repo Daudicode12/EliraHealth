@@ -1,3 +1,4 @@
+import { getServerSession } from '@/lib/auth/server-session';
 // src/app/specialist/account-suspended/page.tsx
 import { getExpertByUserId } from "@/lib/db/queries";
 import { cookies } from "next/headers";
@@ -6,22 +7,8 @@ import { ShieldAlert, Mail } from "lucide-react";
 import { logoutAction } from "@/lib/actions/auth.actions";
 
 export default async function AccountSuspendedPage() {
-  const token = (await cookies()).get("auth-token")?.value;
-  let userId = '';
-  
-  if (token) {
-    const payloadStr = token.replace("mock-jwt-", "").replace("mock-token-", "");
-    try {
-      if (token.startsWith("mock-jwt-")) {
-        const decoded = JSON.parse(Buffer.from(payloadStr, "base64").toString("utf-8"));
-        userId = decoded.id;
-      } else {
-        userId = payloadStr;
-      }
-    } catch (e) {
-      userId = payloadStr;
-    }
-  }
+  const session = await getServerSession();
+  const userId = session?.userId;
 
   if (!userId) redirect("/login");
 

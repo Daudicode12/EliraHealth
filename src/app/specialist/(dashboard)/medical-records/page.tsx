@@ -1,3 +1,4 @@
+import { getServerSession } from "@/lib/auth/server-session";
 import { getMedicalRecords, createMedicalRecord, getAssignedPatients } from "@/lib/db/specialistQueries";
 import { getExpertByUserId } from "@/lib/db/queries";
 import { cookies } from "next/headers";
@@ -15,13 +16,8 @@ export default async function MedicalRecordsPage({
   const filterRecordId = resolvedParams.id;
 
   const token = (await cookies()).get("auth-token")?.value;
-  let userId = token?.replace("mock-token-", "");
-  if (token?.startsWith("mock-jwt-")) {
-    try {
-      const decoded = JSON.parse(Buffer.from(token.replace("mock-jwt-", ""), "base64").toString("utf-8"));
-      userId = decoded.id;
-    } catch(e) {}
-  }
+  const session = await getServerSession();
+    let userId = session?.userId || 'system';
 
   if (!userId) redirect("/login");
 
@@ -36,13 +32,8 @@ export default async function MedicalRecordsPage({
   async function handleCreateRecord(formData: FormData) {
     "use server";
     const token = (await cookies()).get("auth-token")?.value;
-    let userId = token?.replace("mock-token-", "");
-    if (token?.startsWith("mock-jwt-")) {
-      try {
-        const decoded = JSON.parse(Buffer.from(token.replace("mock-jwt-", ""), "base64").toString("utf-8"));
-        userId = decoded.id;
-      } catch(e) {}
-    }
+    const session = await getServerSession();
+    let userId = session?.userId || 'system';
     if (!userId) return;
     
     const doc = await getExpertByUserId(userId);

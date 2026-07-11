@@ -1,5 +1,7 @@
-// src/lib/actions/signup-user.actions.ts
 "use server";
+
+import { signAccessToken } from '@/lib/auth/jwt';
+// src/lib/actions/signup-user.actions.ts
 
 import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
@@ -54,13 +56,12 @@ export async function signupUserAction(prevState: SignupState | null, formData: 
 
   // Set Auth Token Cookie
   try {
-    const payload = Buffer.from(JSON.stringify({
-      id: userId,
+    const token = signAccessToken({
+      userId: userId,
+      email: null,
       role: 'user',
       status: 'active'
-    })).toString('base64');
-
-    const token = `mock-jwt-${payload}`;
+    });
     const cookieStore = await cookies();
     cookieStore.set("auth-token", token, {
       httpOnly: true,

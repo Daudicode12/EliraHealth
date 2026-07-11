@@ -272,12 +272,12 @@ export const ConsultationService = {
       message += ` A follow-up has been scheduled for ${notes.follow_up_date || 'a future date'}.`;
     }
     
-    const patient = await getProfileById(consultation.client_id);
-    const specialist = await getExpertById(consultation.expert_id);
+    const patient = await getProfileById(consultation.patient_id);
+    const specialist = await getExpertById(consultation.specialist_id);
 
     if (patient && patient.email && specialist) {
       await sendNotificationAndEmail({
-        userId: consultation.client_id,
+        userId: consultation.patient_id,
         emailTo: patient.email as string,
         emailSubject: "Elira Health - Consultation Completed",
         title: "Consultation Completed",

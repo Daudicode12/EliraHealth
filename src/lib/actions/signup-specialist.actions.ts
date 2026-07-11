@@ -1,5 +1,7 @@
-// src/lib/actions/signup-specialist.actions.ts
 "use server";
+
+import { signAccessToken } from '@/lib/auth/jwt';
+// src/lib/actions/signup-specialist.actions.ts
 
 import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
@@ -61,13 +63,12 @@ export async function signupSpecialistAction(prevState: SignupState | null, form
 
   // Set Auth Token Cookie
   try {
-    const payload = Buffer.from(JSON.stringify({
-      id: userId,
+    const token = signAccessToken({
+      userId: userId,
+      email: null,
       role: 'expert',
       status: 'profile_incomplete'
-    })).toString('base64');
-
-    const token = `mock-jwt-${payload}`;
+    });
     const cookieStore = await cookies();
     cookieStore.set("auth-token", token, {
       httpOnly: true,

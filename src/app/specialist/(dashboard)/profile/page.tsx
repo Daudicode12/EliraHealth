@@ -2,18 +2,15 @@ import { getExpertByUserId, getProfileById, updateExpert, updateProfile, createN
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
-import { ProfileForm } from "./ProfileForm";
+import { ProfileForm } from "../../profile/ProfileForm";
 import { ShieldCheck } from "lucide-react";
+import { getServerSession } from "@/lib/auth/server-session";
+import { signAccessToken } from "@/lib/auth/jwt";
 
 export default async function ProfilePage() {
   const token = (await cookies()).get("auth-token")?.value;
-  let userId = token?.replace("mock-token-", "");
-  if (token?.startsWith("mock-jwt-")) {
-    try {
-      const decoded = JSON.parse(Buffer.from(token.replace("mock-jwt-", ""), "base64").toString("utf-8"));
-      userId = decoded.id;
-    } catch(e) {}
-  }
+  const session = await getServerSession();
+  const userId = session?.userId;
 
   if (!userId) redirect("/login");
 
@@ -28,13 +25,8 @@ export default async function ProfilePage() {
       const action = formData.get("action") as string; // 'save' or 'submit'
       
       const token = (await cookies()).get("auth-token")?.value;
-      let actionUserId = token?.replace("mock-token-", "");
-      if (token?.startsWith("mock-jwt-")) {
-        try {
-          const decoded = JSON.parse(Buffer.from(token.replace("mock-jwt-", ""), "base64").toString("utf-8"));
-          actionUserId = decoded.id;
-        } catch(e) {}
-      }
+      const session = await getServerSession();
+      const actionUserId = session?.userId;
       if (!actionUserId) return { success: false, error: "Unauthorized" };
       
       const doc = await getExpertByUserId(actionUserId);
@@ -83,12 +75,13 @@ export default async function ProfilePage() {
         await createNotification(actionUserId, "Your credentials have been submitted for review.", "info");
 
         // Update auth token status to pending_review
-        const payload = Buffer.from(JSON.stringify({
-          id: actionUserId,
+        const newToken = signAccessToken({
+          userId: actionUserId,
+          email: null,
           role: 'expert',
           status: 'pending_review'
-        })).toString('base64');
-        (await cookies()).set("auth-token", `mock-jwt-${payload}`, {
+        });
+        (await cookies()).set("auth-token", newToken, {
           httpOnly: true,
           secure: process.env.NODE_ENV === "production",
           sameSite: "lax",

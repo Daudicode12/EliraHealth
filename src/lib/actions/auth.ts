@@ -1,5 +1,7 @@
 "use server";
 
+import { signAccessToken } from '@/lib/auth/jwt';
+
 import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
 import { getProfileByEmail, createProfile, createExpert, getExpertByUserId } from "@/lib/db/queries";
@@ -19,13 +21,12 @@ export async function loginUser(formData: FormData) {
     status = expert?.profile_status || 'profile_incomplete';
   }
 
-  const payload = Buffer.from(JSON.stringify({
-    id: profile.id,
+  const token = signAccessToken({
+      userId: profile.id,
+      email: null,
     role: profile.role,
     status: status
-  })).toString('base64');
-
-  const token = `mock-jwt-${payload}`;
+  });
   (await cookies()).set("auth-token", token, {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",

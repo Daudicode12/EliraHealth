@@ -10,7 +10,7 @@ import { z } from 'zod';
 export async function POST(req: NextRequest) {
   try {
     // 1. Verify user is admin
-    const adminCheck = requireAdmin(req);
+    const adminCheck = await requireAdmin(req);
     if (adminCheck instanceof NextResponse) {
       return adminCheck;
     }

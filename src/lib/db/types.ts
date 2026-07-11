@@ -14,6 +14,8 @@ export interface Profile {
   average_cycle_length?: number;
   average_period_length?: number;
   role: 'user' | 'admin' | 'expert';
+  password_hash?: string | null;
+  status?: string;
 }
 
 export interface Expert {
