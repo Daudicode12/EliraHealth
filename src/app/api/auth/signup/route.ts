@@ -1,9 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createProfile, createExpert } from '@/lib/db/queries';
+import { signAccessToken, signRefreshToken } from '@/lib/auth/jwt';
 import { z } from 'zod';
+import bcrypt from 'bcrypt';
 
 const signupSchema = z.object({
   email: z.string().email(),
+  password: z.string().min(6).optional(),
   firstName: z.string().min(1),
   lastName: z.string().min(1),
   phoneNumber: z.string().optional(),
@@ -19,9 +22,12 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     const validatedData = signupSchema.parse(body);
     
-    // In a real app, we'd hash the password here if provided.
-    // For this implementation, we'll focus on the data structure as requested.
     const userId = crypto.randomUUID();
+    let passwordHash = null;
+    
+    if (validatedData.password) {
+      passwordHash = await bcrypt.hash(validatedData.password, 10);
+    }
     
     // 1. Create Profile
     await createProfile({
@@ -31,6 +37,7 @@ export async function POST(req: NextRequest) {
       last_name: validatedData.lastName,
       phone_number: validatedData.phoneNumber,
       role: validatedData.specialties ? 'expert' : 'user',
+      password_hash: passwordHash,
     });
     
     // 2. If it's an expert, create expert record
@@ -69,10 +76,38 @@ export async function POST(req: NextRequest) {
       }
     }
     
-    return NextResponse.json({
+    const jwtPayload = {
       userId,
+      role: (validatedData.specialties ? 'expert' : 'user') as 'expert' | 'user',
+      email: validatedData.email,
       status: validatedData.specialties ? 'pending_verification' : 'active'
+    };
+
+    const accessToken = signAccessToken(jwtPayload);
+    const refreshToken = signRefreshToken(jwtPayload);
+    
+    const response = NextResponse.json({
+      success: true,
+      accessToken,
+      refreshToken,
+      user: {
+        id: userId,
+        email: validatedData.email,
+        firstName: validatedData.firstName,
+        lastName: validatedData.lastName,
+        role: jwtPayload.role
+      }
     }, { status: 201 });
+    
+    response.cookies.set('auth-token', accessToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 15 * 60, // 15 mins
+      path: '/',
+    });
+    
+    return response;
     
   } catch (error) {
     console.error('Signup Error:', error);
