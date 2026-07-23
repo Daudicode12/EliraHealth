@@ -8,7 +8,7 @@ export async function getSpecialistDashboardStats(specialistId: string): Promise
     getOne<{ count: number }>('SELECT COUNT(*) as count FROM patient_specialist_assignments WHERE specialist_id = ? AND status = \'active\'', [specialistId]),
     getOne<{ count: number }>('SELECT COUNT(*) as count FROM consultations WHERE expert_id = ?', [specialistId]),
     getOne<{ count: number }>('SELECT COUNT(*) as count FROM consultations WHERE expert_id = ? AND status = \'completed\'', [specialistId]),
-    getOne<{ count: number }>('SELECT COUNT(*) as count FROM consultations WHERE expert_id = ? AND status = \'pending\'', [specialistId]),
+    getOne<{ count: number }>('SELECT COUNT(*) as count FROM consultations WHERE expert_id = ? AND status IN (\'pending\', \'confirmed\', \'scheduled\')', [specialistId]),
     getOne<{ count: number }>('SELECT COUNT(*) as count FROM medical_records WHERE specialist_id = ?', [specialistId])
   ]);
 
@@ -38,7 +38,7 @@ export async function getPatientDetailsForSpecialist(specialistId: string, patie
   const [patient, assignment, consultations, medicalRecords] = await Promise.all([
     getOne('SELECT id, first_name, last_name, email, phone_number, date_of_birth, height, weight FROM profiles WHERE id = ?', [patientId]),
     getOne('SELECT status, assigned_at FROM patient_specialist_assignments WHERE specialist_id = ? AND patient_id = ?', [specialistId, patientId]),
-    getMany('SELECT id, scheduled_at, status, issue_category, diagnosis FROM consultations WHERE expert_id = ? AND client_id = ? ORDER BY scheduled_at DESC', [specialistId, patientId]),
+    getMany('SELECT id, status, started_at FROM consultations WHERE specialist_id = ? AND patient_id = ? ORDER BY created_at DESC', [specialistId, patientId]),
     getMany('SELECT id, diagnosis, created_at FROM medical_records WHERE specialist_id = ? AND patient_id = ? ORDER BY created_at DESC', [specialistId, patientId])
   ]);
 

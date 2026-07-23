@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, Users, Calendar, LogOut, Menu, X, FileText, Clock, UserCog, Stethoscope } from "lucide-react";
+import { LayoutDashboard, Users, Calendar, LogOut, Menu, X, FileText, Clock, UserCog, Stethoscope, Bell } from "lucide-react";
 import { useState } from "react";
 
 const NAV = [
@@ -12,6 +12,7 @@ const NAV = [
   { href: "/specialist/consultations", label: "Consultations", icon: Stethoscope, isLockable: true },
   { href: "/specialist/medical-records", label: "Medical Records", icon: FileText, isLockable: true },
   { href: "/specialist/availability", label: "Availability", icon: Clock, isLockable: true },
+  { href: "/specialist/notifications", label: "Notifications", icon: Bell },
   { href: "/specialist/profile", label: "My Profile", icon: UserCog },
 ];
 

@@ -2,13 +2,14 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, Users, Calendar, LogOut, Menu, X, ShieldPlus } from "lucide-react";
+import { LayoutDashboard, Users, Calendar, LogOut, Menu, X, ShieldPlus, Bell } from "lucide-react";
 import { useState } from "react";
 
 const NAV = [
   { href: "/admin/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/admin/doctors", label: "Verification & Doctors", icon: Users },
   { href: "/admin/appointments", label: "Appointments", icon: Calendar },
+  { href: "/admin/notifications", label: "Notifications", icon: Bell },
 ];
 
 export function AdminSidebar({ logoutAction }: { logoutAction: () => void }) {

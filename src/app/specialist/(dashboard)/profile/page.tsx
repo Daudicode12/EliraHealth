@@ -1,7 +1,9 @@
-import { getExpertByUserId, updateExpert } from "@/lib/db/queries";
+import { getExpertByUserId, getProfileById, updateExpert, updateProfile, createNotification } from "@/lib/db/queries";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
+import { ProfileForm } from "./ProfileForm";
+import { ShieldCheck } from "lucide-react";
 
 export default async function ProfilePage() {
   const token = (await cookies()).get("auth-token")?.value;
@@ -18,67 +20,113 @@ export default async function ProfilePage() {
   const doctor = await getExpertByUserId(userId);
   if (!doctor) redirect("/login");
 
-  async function updateProfile(formData: FormData) {
-    "use server";
-    const token = (await cookies()).get("auth-token")?.value;
-    let userId = token?.replace("mock-token-", "");
-  if (token?.startsWith("mock-jwt-")) {
-    try {
-      const decoded = JSON.parse(Buffer.from(token.replace("mock-jwt-", ""), "base64").toString("utf-8"));
-      userId = decoded.id;
-    } catch(e) {}
-  }
-    if (!userId) return;
-    
-    const doctor = await getExpertByUserId(userId);
-    if (!doctor) return;
+  const userProfile = await getProfileById(userId);
 
-    await updateExpert(doctor.id, {
-      bio: formData.get("bio") as string,
-      hospital_name: formData.get("hospital") as string,
-      hourly_rate: Number(formData.get("hourly_rate")),
-      years_of_experience: Number(formData.get("years_of_experience")),
-    });
-    
-    revalidatePath("/specialist/profile");
+  async function handleProfileUpdate(formData: FormData) {
+    "use server";
+    try {
+      const action = formData.get("action") as string; // 'save' or 'submit'
+      
+      const token = (await cookies()).get("auth-token")?.value;
+      let actionUserId = token?.replace("mock-token-", "");
+      if (token?.startsWith("mock-jwt-")) {
+        try {
+          const decoded = JSON.parse(Buffer.from(token.replace("mock-jwt-", ""), "base64").toString("utf-8"));
+          actionUserId = decoded.id;
+        } catch(e) {}
+      }
+      if (!actionUserId) return { success: false, error: "Unauthorized" };
+      
+      const doc = await getExpertByUserId(actionUserId);
+      if (!doc) return { success: false, error: "Profile not found" };
+
+      // Get fields
+      const display_name = formData.get("display_name") as string;
+      const phone_number = formData.get("phone_number") as string;
+      const avatar_url = formData.get("avatar_url") as string;
+      const license_number = formData.get("license_number") as string;
+      const medical_council_number = formData.get("medical_council_number") as string;
+      const hospital_name = formData.get("hospital_name") as string;
+      const practicing_certificate_url = formData.get("practicing_certificate_url") as string;
+      const bio = formData.get("bio") as string;
+      
+      const specialties = formData.getAll("specialties") as string[];
+      const years_of_experience = formData.get("years_of_experience") ? Number(formData.get("years_of_experience")) : null;
+      const hourly_rate = formData.get("hourly_rate") ? Number(formData.get("hourly_rate")) : null;
+
+      // Base updates for profile (phone & split name)
+      const firstName = display_name ? display_name.split(" ")[0] : "";
+      const lastName = display_name && display_name.split(" ").length > 1 ? display_name.split(" ").slice(1).join(" ") : "";
+      
+      await updateProfile(actionUserId, {
+        phone_number,
+        first_name: firstName,
+        last_name: lastName,
+      });
+
+      const expertUpdates: any = {
+        display_name,
+        avatar_url,
+        license_number,
+        medical_council_number,
+        hospital_name,
+        practicing_certificate_url,
+        bio,
+        specialties: specialties.length > 0 ? JSON.stringify(specialties) : doc.specialties,
+        years_of_experience,
+        hourly_rate,
+      };
+
+      if (action === 'submit') {
+        expertUpdates.profile_status = 'pending_review';
+        expertUpdates.submitted_for_review_at = new Date().toISOString();
+        await createNotification(actionUserId, "Your credentials have been submitted for review.", "info");
+
+        // Update auth token status to pending_review
+        const payload = Buffer.from(JSON.stringify({
+          id: actionUserId,
+          role: 'expert',
+          status: 'pending_review'
+        })).toString('base64');
+        (await cookies()).set("auth-token", `mock-jwt-${payload}`, {
+          httpOnly: true,
+          secure: process.env.NODE_ENV === "production",
+          sameSite: "lax",
+          path: "/",
+        });
+      }
+
+      await updateExpert(doc.id, expertUpdates);
+      
+      revalidatePath("/specialist/profile");
+      revalidatePath("/specialist/dashboard");
+      return { success: true, submitted: action === 'submit' };
+    } catch (err) {
+      console.error(err);
+      return { success: false, error: "Failed to update profile." };
+    }
   }
 
   return (
-    <div className="max-w-xl space-y-6">
-      <h1 className="text-xl font-semibold">Profile</h1>
-      <form action={updateProfile} className="space-y-4">
-        {[
-          { name: "hospital", label: "Hospital", defaultValue: doctor.hospital_name ?? "" },
-          { name: "years_of_experience", label: "Years of Experience", defaultValue: String(doctor.years_of_experience) },
-          { name: "hourly_rate", label: "Hourly Rate (KES)", defaultValue: String(doctor.hourly_rate) },
-        ].map(({ name, label, defaultValue }) => (
-          <div key={name} className="space-y-1">
-            <label htmlFor={name} className="text-sm font-medium">{label}</label>
-            <input
-              id={name}
-              name={name}
-              defaultValue={defaultValue}
-              className="w-full rounded-md border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
-            />
-          </div>
-        ))}
-        <div className="space-y-1">
-          <label htmlFor="bio" className="text-sm font-medium">Bio</label>
-          <textarea
-            id="bio"
-            name="bio"
-            rows={4}
-            defaultValue={doctor.bio ?? ""}
-            className="w-full rounded-md border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring resize-none"
-          />
-        </div>
-        <button
-          type="submit"
-          className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
-        >
-          Save changes
-        </button>
-      </form>
+    <div className="max-w-4xl space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+      <div>
+        <h1 className="text-3xl font-bold text-slate-900 flex items-center gap-3">
+          My Profile
+          {doctor.profile_status === 'approved' && (
+            <span className="flex items-center gap-1 text-sm bg-emerald-500/10 text-emerald-600 px-3 py-1 rounded-full border border-emerald-500/20 shadow-sm">
+              <ShieldCheck size={16} />
+              Verified Expert
+            </span>
+          )}
+        </h1>
+        <p className="text-slate-500 mt-2">Manage your personal and clinical profile information.</p>
+      </div>
+
+      <ProfileForm 
+        doctor={JSON.parse(JSON.stringify(doctor))} 
+        userProfile={userProfile ? JSON.parse(JSON.stringify(userProfile)) : null} 
+        updateAction={handleProfileUpdate} 
+      />
     </div>
   );
 }

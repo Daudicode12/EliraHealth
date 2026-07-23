@@ -7,7 +7,17 @@ export interface SessionData {
 }
 
 export function getSession(req: NextRequest): SessionData | null {
-  const token = req.cookies.get("auth-token")?.value;
+  // Check cookie first (for Web Portal)
+  let token = req.cookies.get("auth-token")?.value;
+  
+  // Fallback to Authorization header (for Mobile App / Flutter Web)
+  if (!token) {
+    const authHeader = req.headers.get("authorization");
+    if (authHeader && authHeader.startsWith("Bearer ")) {
+      token = authHeader.substring(7);
+    }
+  }
+
   if (!token || !token.startsWith("mock-jwt-")) return null;
 
   try {

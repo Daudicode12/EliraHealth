@@ -1,68 +1,48 @@
-import { NextRequest, NextResponse } from "next/server";
-import { requireSpecialist } from "@/lib/auth/specialist";
-import { getConsultationById } from "@/lib/db/queries";
-import { executeAction } from "@/lib/db/client";
-import { UpdateConsultationSchema } from "@/lib/types/specialist";
+import { NextRequest, NextResponse } from 'next/server';
+import { ConsultationService } from '@/services/consultation.service';
+import { getExpertByUserId } from '@/lib/db/queries';
+
+function getUserIdFromToken(token: string | undefined): string | null {
+  if (!token) return null;
+  let userId = token.replace('mock-token-', '');
+  if (token.startsWith('mock-jwt-')) {
+    try {
+      const decoded = JSON.parse(Buffer.from(token.replace('mock-jwt-', ''), 'base64').toString('utf-8'));
+      userId = decoded.id;
+    } catch(e) { return null; }
+  }
+  return userId || null;
+}
 
 export async function GET(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const auth = await requireSpecialist(req);
-  if (auth instanceof NextResponse) return auth;
-
   try {
-    const { id } = await params;
-    const consultation = await getConsultationById(id);
+    const token = req.cookies.get('auth-token')?.value;
+    const userId = getUserIdFromToken(token);
+    if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-    if (!consultation || consultation.expert_id !== auth.specialistId) {
-      return NextResponse.json({ success: false, error: "Consultation not found or access denied" }, { status: 404 });
+    const expert = await getExpertByUserId(userId);
+    if (!expert) return NextResponse.json({ error: 'Specialist not found' }, { status: 404 });
+
+    const { id } = await params;
+    const consultation = await ConsultationService.getConsultationById(id);
+    
+    if (!consultation) {
+      return NextResponse.json({ error: 'Consultation not found' }, { status: 404 });
     }
 
-    return NextResponse.json({ success: true, data: consultation });
+    // Security: verify specialist owns this consultation
+    if (consultation.specialist_id !== expert.id) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+
+    const notes = await ConsultationService.getConsultationNotes(id);
+
+    return NextResponse.json({ consultation, notes });
   } catch (error) {
-    console.error("Fetch Consultation Error:", error);
-    return NextResponse.json({ success: false, error: "Failed to fetch consultation" }, { status: 500 });
-  }
-}
-
-export async function PUT(
-  req: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  const auth = await requireSpecialist(req);
-  if (auth instanceof NextResponse) return auth;
-
-  try {
-    const { id } = await params;
-    const consultation = await getConsultationById(id);
-
-    if (!consultation || consultation.expert_id !== auth.specialistId) {
-      return NextResponse.json({ success: false, error: "Consultation not found or access denied" }, { status: 404 });
-    }
-
-    const body = await req.json();
-    const validatedData = UpdateConsultationSchema.parse(body);
-
-    const fields = Object.keys(validatedData);
-    if (fields.length === 0) {
-       return NextResponse.json({ success: true, data: consultation });
-    }
-
-    const setClause = fields.map(f => `${f} = ?`).join(', ');
-    const values = fields.map(f => (validatedData as Record<string, unknown>)[f]);
-
-    await executeAction(
-      `UPDATE consultations SET ${setClause}, updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now') WHERE id = ? AND expert_id = ?`,
-      [...values, id, auth.specialistId]
-    );
-
-    return NextResponse.json({ success: true, message: "Consultation updated successfully" });
-  } catch (error: any) {
-    console.error("Update Consultation Error:", error);
-    if (error.issues) {
-      return NextResponse.json({ success: false, error: "Validation failed", details: error.issues }, { status: 400 });
-    }
-    return NextResponse.json({ success: false, error: "Internal Server Error" }, { status: 500 });
+    console.error('Get Consultation Error:', error);
+    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }
 }

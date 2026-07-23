@@ -258,7 +258,7 @@ export default async function DoctorDashboard() {
               <a href="/specialist/appointments" className="text-sm text-brand font-medium hover:underline">View Schedule</a>
             )}
           </div>
-          
+
           <div className="bg-slate-50 rounded-xl p-8 text-center border border-dashed border-slate-200">
             <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-white shadow-sm mb-4">
               {profileStatus === 'approved' ? (

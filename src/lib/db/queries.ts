@@ -121,16 +121,13 @@ export async function getVerifiedExperts(filters?: { specialty?: string }): Prom
 // ==========================================
 
 export async function createNotification(userId: string, message: string, type: 'info' | 'success' | 'error' | 'warning'): Promise<void> {
-  // TODO: Integrate with existing Elira Health notifications module
-  // Example implementation:
-  /*
-  await executeAction(
-    'INSERT INTO notifications (user_id, message, type) VALUES (?, ?, ?)',
-    [userId, message, type]
-  );
-  */
   console.log(`[Notification to ${userId}]: [${type.toUpperCase()}] ${message}`);
 }
+
+import { sendNotificationAndEmail } from '../services/notification.service';
+import SpecialistApprovedEmail from '../email/templates/specialist-approved';
+import SpecialistRejectedEmail from '../email/templates/specialist-rejected';
+
 
 export async function approveExpert(expertId: string, adminId: string): Promise<void> {
   await executeAction(
@@ -145,24 +142,21 @@ export async function approveExpert(expertId: string, adminId: string): Promise<
   
   const expert = await getExpertById(expertId);
   if (expert) {
-    await createNotification(expert.user_id, "Congratulations!\n\nYour specialist profile has been approved.\n\nYou now have full access to Elira Health.", "success");
-    try {
-      const profile = await getOne<{ email: string; first_name: string; last_name: string }>(
-        'SELECT email, first_name, last_name FROM profiles WHERE id = ?', 
-        [expert.user_id]
-      );
-      if (profile && profile.email) {
-        const { sendDoctorApprovalEmail } = await import('@/lib/services/email');
-        const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
-        await sendDoctorApprovalEmail({
-          email: profile.email,
-          firstName: profile.first_name || '',
-          lastName: profile.last_name || '',
-          loginUrl: `${baseUrl}/login`,
-        });
-      }
-    } catch (e) {
-      console.error('Failed to send approval email:', e);
+    const profile = await getProfileById(expert.user_id);
+    if (profile) {
+      await sendNotificationAndEmail({
+        userId: expert.user_id,
+        emailTo: profile.email as string,
+        emailSubject: "Elira Health - Profile Approved",
+        title: "Profile Approved",
+        message: "Congratulations! Your specialist profile has been approved.",
+        type: "approval",
+        actionUrl: "/specialist/dashboard",
+        emailTemplate: SpecialistApprovedEmail({
+          name: expert.display_name as string,
+          loginUrl: `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/login`
+        })
+      });
     }
   }
 }
@@ -179,25 +173,20 @@ export async function rejectExpert(expertId: string, reason: string): Promise<vo
   
   const expert = await getExpertById(expertId);
   if (expert) {
-    await createNotification(expert.user_id, `Your application was not approved.\n\nReason:\n${reason}`, "error");
-    try {
-      const profile = await getOne<{ email: string; first_name: string; last_name: string }>(
-        'SELECT email, first_name, last_name FROM profiles WHERE id = ?', 
-        [expert.user_id]
-      );
-      if (profile && profile.email) {
-        const { sendDoctorRejectionEmail } = await import('@/lib/services/email');
-        const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
-        await sendDoctorRejectionEmail({
-          email: profile.email,
-          firstName: profile.first_name || '',
-          lastName: profile.last_name || '',
-          reason: reason,
-          profileUrl: `${baseUrl}/specialist/profile/complete`,
-        });
-      }
-    } catch (e) {
-      console.error('Failed to send rejection email:', e);
+    const profile = await getProfileById(expert.user_id);
+    if (profile && profile.email) {
+      await sendNotificationAndEmail({
+        userId: expert.user_id,
+        emailTo: profile.email as string,
+        emailSubject: "Elira Health - Profile Update",
+        title: "Application Status Update",
+        message: `Your application was not approved. Reason: ${reason}`,
+        type: "rejection",
+        emailTemplate: SpecialistRejectedEmail({
+          name: expert.display_name as string,
+          reason
+        })
+      });
     }
   }
 }
@@ -317,45 +306,48 @@ export async function deleteAvailability(id: string): Promise<void> {
 // ==========================================
 
 export async function createConsultation(data: Partial<Consultation>): Promise<string> {
-  const { client_id, expert_id, scheduled_at, issue_category, issue_description } = data;
+  const { patient_id, specialist_id, started_at, assessment, chief_complaint } = data;
   const result = await executeAction(
-    `INSERT INTO consultations (client_id, expert_id, scheduled_at, issue_category, issue_description, status) 
+    `INSERT INTO consultations (patient_id, specialist_id, started_at, assessment, chief_complaint, status) 
      VALUES (?, ?, ?, ?, ?, 'pending')`,
-    [client_id, expert_id, scheduled_at, issue_category, issue_description]
+    [patient_id, specialist_id, started_at, assessment, chief_complaint]
   );
   return result.lastInsertRowid?.toString() || '';
 }
 
-export async function getPatientConsultations(clientId: string): Promise<Array<Consultation & { expert_name: string }>> {
+export async function getPatientConsultations(patientId: string): Promise<Array<Consultation & { expert_name: string }>> {
   return await getMany<Consultation & { expert_name: string }>(
-    `SELECT c.*, e.display_name as expert_name 
+    `SELECT c.id, c.patient_id, c.specialist_id, c.status, c.started_at, c.created_at, c.updated_at,
+      e.display_name as expert_name 
      FROM consultations c 
-     JOIN experts e ON c.expert_id = e.id 
-     WHERE c.client_id = ? 
-     ORDER BY c.scheduled_at DESC`,
-    [clientId]
+     LEFT JOIN experts e ON c.specialist_id = e.id 
+     WHERE c.patient_id = ? 
+     ORDER BY c.created_at DESC`,
+    [patientId]
   );
 }
 
-export async function getExpertConsultations(expertId: string): Promise<Array<Consultation & { first_name: string; last_name: string }>> {
+export async function getExpertConsultations(specialistId: string): Promise<Array<Consultation & { first_name: string; last_name: string }>> {
   return await getMany<Consultation & { first_name: string; last_name: string }>(
-    `SELECT c.*, p.first_name, p.last_name 
+    `SELECT c.id, c.patient_id, c.specialist_id, c.status, c.started_at, c.created_at, c.updated_at,
+      p.first_name, p.last_name 
      FROM consultations c 
-     JOIN profiles p ON c.client_id = p.id 
-     WHERE c.expert_id = ? 
-     ORDER BY c.scheduled_at DESC`,
-    [expertId]
+     LEFT JOIN profiles p ON c.patient_id = p.id 
+     WHERE c.specialist_id = ? 
+     ORDER BY c.created_at DESC`,
+    [specialistId]
   );
 }
 
 export async function getPendingConsultations(): Promise<Array<Consultation & { first_name: string; last_name: string; expert_name: string }>> {
   return await getMany<Consultation & { first_name: string; last_name: string; expert_name: string }>(
-    `SELECT c.*, p.first_name, p.last_name, e.display_name as expert_name 
+    `SELECT c.id, c.patient_id, c.specialist_id, c.status, c.started_at, c.created_at, c.updated_at,
+      p.first_name, p.last_name, e.display_name as expert_name 
      FROM consultations c 
-     JOIN profiles p ON c.client_id = p.id 
-     JOIN experts e ON c.expert_id = e.id 
-     WHERE c.status = 'pending' 
-     ORDER BY c.created_at DESC`
+     LEFT JOIN profiles p ON c.patient_id = p.id 
+     LEFT JOIN experts e ON c.specialist_id = e.id 
+     WHERE c.status = 'scheduled' 
+     ORDER BY c.created_at ASC`
   );
 }
 
