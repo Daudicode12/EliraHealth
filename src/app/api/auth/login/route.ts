@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getProfileByEmail } from '@/lib/db/queries';
-import { signAccessToken, signRefreshToken } from '@/lib/auth/jwt';
+import { createSessionToken } from '@/lib/auth/session';
 import { z } from 'zod';
-import bcrypt from 'bcrypt';
+import bcrypt from 'bcryptjs';
 
 const loginSchema = z.object({
   email: z.string().email(),
@@ -29,17 +29,16 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: false, error: 'Invalid credentials' }, { status: 401 });
     }
     
-    const jwtPayload = {
-      userId: profile.id,
+    const token = await createSessionToken({
+      id: profile.id,
       role: profile.role,
-      status: (profile as any).status || 'active'
+      status: profile.status || 'active'
     });
-    const mockToken = `mock-jwt-\${Buffer.from(payload).toString('base64')}`;
     
     const response = NextResponse.json({
       success: true,
-      accessToken,
-      refreshToken,
+      accessToken: token,
+      refreshToken: token,
       user: {
         id: profile.id,
         email: profile.email,
@@ -49,11 +48,11 @@ export async function POST(req: NextRequest) {
       }
     });
     
-    response.cookies.set('auth-token', accessToken, {
+    response.cookies.set('auth-token', token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
-      maxAge: 15 * 60, // 15 mins
+      maxAge: 7 * 24 * 60 * 60, // 7 days
       path: '/',
     });
     
