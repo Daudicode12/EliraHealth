@@ -3,7 +3,7 @@ import { getSession } from "@/lib/auth/roles";
 import { getUserNotifications } from "@/lib/services/notification.service";
 
 export async function GET(req: NextRequest) {
-  const session = getSession(req);
+  const session = await getSession(req);
   if (!session) {
     return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
   }

@@ -2,7 +2,7 @@ import { getExpertByUserId, getProfileById, updateExpert, updateProfile, createN
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
-import { ProfileForm } from "./ProfileForm";
+import { ProfileForm } from "@/app/specialist/profile/ProfileForm";
 import { ShieldCheck } from "lucide-react";
 import { getServerSession } from "@/lib/auth/session";
 
@@ -13,7 +13,7 @@ export default async function ProfilePage() {
   const doctor = await getExpertByUserId(session.id);
   if (!doctor) redirect("/login");
 
-  const userProfile = await getProfileById(userId);
+  const userProfile = await getProfileById(session.id);
 
   async function handleProfileUpdate(formData: FormData) {
     "use server";

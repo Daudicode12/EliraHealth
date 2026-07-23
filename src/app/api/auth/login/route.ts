@@ -25,7 +25,7 @@ export async function POST(req: NextRequest) {
     const payload = JSON.stringify({
       userId: profile.id,
       role: profile.role,
-      status: profile.status || 'active'
+      status: (profile as any).status || 'active'
     });
     const mockToken = `mock-jwt-\${Buffer.from(payload).toString('base64')}`;
     

@@ -34,7 +34,6 @@ export async function getSession(req: NextRequest): Promise<SessionData | null> 
 
   return { userId: payload.id, role: payload.role, status: payload.status };
 }
-}
 
 export async function requirePatient(req: NextRequest): Promise<{ userId: string } | NextResponse> {
   const session = await getSession(req);
