@@ -9,9 +9,10 @@ export interface SessionData {
 
 export async function getSession(req: NextRequest): Promise<SessionData | null> {
   let token = req.cookies.get("auth-token")?.value;
-
-  if (!token) {
-    return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
+  
+  const authHeader = req.headers.get("authorization");
+  if (authHeader && authHeader.startsWith("Bearer ")) {
+    token = authHeader.substring(7);
   }
 
   if (!token) return null;
@@ -29,7 +30,7 @@ export async function getSession(req: NextRequest): Promise<SessionData | null> 
   const payload = await verifySessionToken(token);
   if (!payload) return null;
 
-  return { userId: payload.id, role: payload.role, status: payload.status };
+  return { userId: payload.id as string, role: payload.role as string, status: payload.status as string };
 }
 
 export async function requirePatient(req: NextRequest): Promise<{ userId: string } | NextResponse> {
@@ -39,11 +40,11 @@ export async function requirePatient(req: NextRequest): Promise<{ userId: string
     return NextResponse.json({ success: false, error: "Unauthorized: Missing or invalid token" }, { status: 401 });
   }
 
-  if (sessionOrError.role !== "user") {
+  if (session.role !== "user") {
     return NextResponse.json({ success: false, error: "Forbidden" }, { status: 403 });
   }
 
-  return { userId: sessionOrError.userId };
+  return { userId: session.userId };
 }
 
 export async function requireAdmin(req: NextRequest): Promise<{ adminId: string } | NextResponse> {
@@ -53,9 +54,9 @@ export async function requireAdmin(req: NextRequest): Promise<{ adminId: string 
     return NextResponse.json({ success: false, error: "Unauthorized: Missing or invalid token" }, { status: 401 });
   }
 
-  if (sessionOrError.role !== "admin") {
+  if (session.role !== "admin") {
     return NextResponse.json({ success: false, error: "Forbidden" }, { status: 403 });
   }
 
-  return { adminId: sessionOrError.userId };
+  return { adminId: session.userId };
 }
