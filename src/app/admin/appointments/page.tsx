@@ -1,4 +1,4 @@
-import { getServerSession } from "@/lib/auth/server-session";
+// import { getServerSession } from "@/lib/auth/server-session";
 import { AppointmentService } from "@/services/appointment.service";
 import { getAllConsultations } from "@/lib/db/queries";
 import { 
