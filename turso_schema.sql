@@ -26,7 +26,8 @@ CREATE TABLE IF NOT EXISTS profiles (
   current_cycle_mode TEXT DEFAULT 'tracking' CHECK (current_cycle_mode IN ('tracking', 'pregnant', 'postpartum', 'partner')),
   average_cycle_length INTEGER DEFAULT 28 CHECK (average_cycle_length >= 21 AND average_cycle_length <= 35),
   average_period_length INTEGER DEFAULT 5 CHECK (average_period_length >= 1 AND average_period_length <= 10),
-  role TEXT DEFAULT 'user' CHECK (role IN ('user', 'admin', 'expert', 'partner'))
+  role TEXT DEFAULT 'user' CHECK (role IN ('user', 'admin', 'expert', 'partner')),
+  password_hash TEXT -- bcrypt hash; used by Eliraweb's web auth
 );
 
 -- ─────────────────────────────────────────────────────────────────────────────
@@ -253,11 +254,18 @@ CREATE TABLE IF NOT EXISTS partner_insights (
 
 CREATE TABLE IF NOT EXISTS articles (
   id TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(16)))),
+  slug TEXT UNIQUE,
   title TEXT NOT NULL,
-  content TEXT NOT NULL,
+  tag TEXT, -- display category, e.g. "Medical Insights"
+  read_time TEXT, -- e.g. "12 min read"
+  author_name TEXT, -- free-text author byline (content authors aren't always platform users)
+  author_role TEXT,
+  author_avatar TEXT,
+  summary TEXT,
+  content TEXT NOT NULL, -- JSON-serialized array of {heading?: string, content: string[]}
   featured BOOLEAN DEFAULT 0,
   image_url TEXT,
-  author_id TEXT NOT NULL, -- References Admin/Author profile ID
+  author_id TEXT REFERENCES profiles(id) ON DELETE SET NULL, -- optional link if author is a real platform user
   created_at TEXT DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
   updated_at TEXT DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
 );
@@ -275,6 +283,8 @@ CREATE TABLE IF NOT EXISTS experts (
   specialties TEXT DEFAULT '[]', -- JSON list of strings
   sub_specialties TEXT DEFAULT '[]', -- JSON list of strings
   languages TEXT DEFAULT '[]', -- JSON list of strings
+  credentials TEXT, -- legacy free-text credentials, still read by Femora-App's experts_service.dart
+  is_verified BOOLEAN DEFAULT 0, -- legacy verification flag, superseded by verification_status but still queried
   license_number TEXT,
   medical_council_number TEXT,
   practicing_certificate_url TEXT,
@@ -377,6 +387,19 @@ CREATE TABLE IF NOT EXISTS journal_entries (
   tags TEXT, -- Comma-separated strings or JSON Array
   created_at TEXT DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
   updated_at TEXT DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
+);
+
+-- ─────────────────────────────────────────────────────────────────────────────
+-- 9b. Notifications
+-- ─────────────────────────────────────────────────────────────────────────────
+
+CREATE TABLE IF NOT EXISTS notifications (
+  id TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(16)))),
+  user_id TEXT NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+  message TEXT NOT NULL,
+  type TEXT DEFAULT 'info' CHECK (type IN ('info', 'success', 'error', 'warning')),
+  is_read BOOLEAN DEFAULT 0,
+  created_at TEXT DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
 );
 
 -- ─────────────────────────────────────────────────────────────────────────────

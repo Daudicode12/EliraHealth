@@ -5,12 +5,13 @@ import { getProfileByEmail, createSpecialistByAdmin } from '@/lib/db/queries';
 import { addSpecialistSchema } from '@/lib/schemas/specialist';
 import { generateTempPassword } from '@/lib/utils/password';
 import { sendSpecialistCredentialsEmail } from '@/lib/services/email';
+import { hashPassword } from '@/lib/auth/password';
 import { z } from 'zod';
 
 export async function POST(req: NextRequest) {
   try {
     // 1. Verify user is admin
-    const adminCheck = requireAdmin(req);
+    const adminCheck = await requireAdmin(req);
     if (adminCheck instanceof NextResponse) {
       return adminCheck;
     }
@@ -30,6 +31,7 @@ export async function POST(req: NextRequest) {
 
     // 4. Generate secure temporary password
     const tempPassword = generateTempPassword();
+    const passwordHash = await hashPassword(tempPassword);
 
     // 5. Generate secure UUID for the new expert user
     const userId = crypto.randomUUID();
@@ -47,6 +49,7 @@ export async function POST(req: NextRequest) {
       hospital: validatedData.hospital,
       bio: validatedData.bio,
       hourlyRate: validatedData.hourlyRate,
+      passwordHash,
     });
 
     // 7. Send credentials email

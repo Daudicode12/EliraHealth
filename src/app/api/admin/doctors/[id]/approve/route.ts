@@ -1,22 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { approveExpert } from '@/lib/db/queries';
-import { cookies } from 'next/headers';
+import { requireAdmin } from '@/lib/auth/roles';
 
 export async function PATCH(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { id } = await params;
-    
-    // Get current admin ID from cookie
-    const token = (await cookies()).get("auth-token")?.value;
-    const adminId = token?.replace("mock-token-", "") || 'system';
+    const auth = await requireAdmin(req);
+    if (auth instanceof NextResponse) return auth;
 
-    await approveExpert(id, adminId);
-    
-    // TODO: Create notification
-    
+    const { id } = await params;
+    await approveExpert(id, auth.adminId);
+
     return NextResponse.json({ success: true, message: 'Expert approved successfully' });
   } catch (error) {
     console.error('Approve Expert Error:', error);

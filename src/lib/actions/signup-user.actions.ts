@@ -4,6 +4,8 @@
 import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
 import { createProfile, getProfileByEmail } from "@/lib/db/queries";
+import { hashPassword } from "@/lib/auth/password";
+import { createSessionToken } from "@/lib/auth/session";
 
 export type SignupState = {
   success?: boolean;
@@ -39,6 +41,8 @@ export async function signupUserAction(prevState: SignupState | null, formData: 
       return { success: false, message: "Email is already registered" };
     }
 
+    const password_hash = await hashPassword(password);
+
     await createProfile({
       id: userId,
       email,
@@ -46,6 +50,7 @@ export async function signupUserAction(prevState: SignupState | null, formData: 
       last_name: lastName,
       role: 'user',
       current_cycle_mode: null,
+      password_hash,
     });
 
   } catch (error) {
@@ -55,13 +60,12 @@ export async function signupUserAction(prevState: SignupState | null, formData: 
 
   // Set Auth Token Cookie
   try {
-    const payload = Buffer.from(JSON.stringify({
+    const token = await createSessionToken({
       id: userId,
       role: 'user',
-      status: 'active'
-    })).toString('base64');
+      status: 'active',
+    });
 
-    const token = `mock-jwt-${payload}`;
     const cookieStore = await cookies();
     cookieStore.set("auth-token", token, {
       httpOnly: true,

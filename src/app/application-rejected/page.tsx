@@ -2,17 +2,15 @@ import Link from "next/link";
 import { AlertCircle } from "lucide-react";
 import { logoutAction } from "@/lib/actions/auth.actions";
 import { getExpertByUserId } from "@/lib/db/queries";
-import { cookies } from "next/headers";
+import { getServerSession } from "@/lib/auth/session";
 
 export default async function ApplicationRejectedPage() {
-  const token = (await cookies()).get("auth-token")?.value;
+  const session = await getServerSession();
   let rejectionReason = "Missing documentation or unverified credentials.";
-  
-  if (token) {
+
+  if (session) {
     try {
-      const payloadStr = token.replace("mock-jwt-", "");
-      const decoded = JSON.parse(Buffer.from(payloadStr, "base64").toString("utf-8"));
-      const expert = await getExpertByUserId(decoded.id);
+      const expert = await getExpertByUserId(session.id);
       if (expert?.rejection_reason) {
         rejectionReason = expert.rejection_reason;
       }

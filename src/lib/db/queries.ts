@@ -22,10 +22,10 @@ export async function getProfileByEmail(email: string): Promise<Profile | null> 
 }
 
 export async function createProfile(data: Partial<Profile>): Promise<void> {
-  const { id, email, first_name, last_name, role, phone_number, current_cycle_mode } = data;
+  const { id, email, first_name, last_name, role, phone_number, current_cycle_mode, password_hash } = data;
   await executeAction(
-    'INSERT INTO profiles (id, email, first_name, last_name, role, phone_number, current_cycle_mode) VALUES (?, ?, ?, ?, ?, ?, ?)',
-    [id, email, first_name, last_name, role || 'user', phone_number, current_cycle_mode !== undefined ? current_cycle_mode : null]
+    'INSERT INTO profiles (id, email, first_name, last_name, role, phone_number, current_cycle_mode, password_hash) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+    [id, email, first_name, last_name, role || 'user', phone_number, current_cycle_mode !== undefined ? current_cycle_mode : null, password_hash ?? null]
   );
 }
 
@@ -117,11 +117,34 @@ export async function getVerifiedExperts(filters?: { specialty?: string }): Prom
 }
 
 // ==========================================
-// NOTIFICATIONS (Placeholder)
+// NOTIFICATIONS
 // ==========================================
 
+export interface Notification {
+  id: string;
+  user_id: string;
+  message: string;
+  type: 'info' | 'success' | 'error' | 'warning';
+  is_read: boolean;
+  created_at: string;
+}
+
 export async function createNotification(userId: string, message: string, type: 'info' | 'success' | 'error' | 'warning'): Promise<void> {
-  console.log(`[Notification to ${userId}]: [${type.toUpperCase()}] ${message}`);
+  await executeAction(
+    'INSERT INTO notifications (user_id, message, type) VALUES (?, ?, ?)',
+    [userId, message, type]
+  );
+}
+
+export async function getNotificationsForUser(userId: string): Promise<Notification[]> {
+  return await getMany<Notification>(
+    'SELECT * FROM notifications WHERE user_id = ? ORDER BY created_at DESC',
+    [userId]
+  );
+}
+
+export async function markNotificationRead(id: string): Promise<void> {
+  await executeAction('UPDATE notifications SET is_read = 1 WHERE id = ?', [id]);
 }
 
 import { sendNotificationAndEmail } from '../services/notification.service';
@@ -276,6 +299,26 @@ export async function getExpertStatusCounts(): Promise<Record<string, number>> {
   });
   
   return result;
+}
+
+export async function getPublicStats(): Promise<{
+  activeUsers: number;
+  consultations: number;
+  verifiedSpecialists: number;
+}> {
+  const [users, consultations, specialists] = await Promise.all([
+    getOne<{ count: number }>('SELECT COUNT(*) as count FROM profiles'),
+    getOne<{ count: number }>('SELECT COUNT(*) as count FROM consultations'),
+    getOne<{ count: number }>(
+      "SELECT COUNT(*) as count FROM experts WHERE verification_status = 'approved'"
+    ),
+  ]);
+
+  return {
+    activeUsers: users?.count ?? 0,
+    consultations: consultations?.count ?? 0,
+    verifiedSpecialists: specialists?.count ?? 0,
+  };
 }
 
 // ==========================================
@@ -447,6 +490,7 @@ export async function createSpecialistByAdmin(data: {
   hospital: string;
   bio?: string;
   hourlyRate: number;
+  passwordHash: string;
 }): Promise<void> {
   // Create in profiles table
   await createProfile({
@@ -456,6 +500,7 @@ export async function createSpecialistByAdmin(data: {
     last_name: data.lastName,
     phone_number: data.phoneNumber,
     role: 'expert',
+    password_hash: data.passwordHash,
   });
 
   // Create in experts table
@@ -484,14 +529,48 @@ export async function createSpecialistByAdmin(data: {
 
 export async function getAllConsultations(): Promise<any[]> {
   return await getMany(
-    `SELECT c.*, 
-            p.first_name as patient_first_name, 
-            p.last_name as patient_last_name, 
+    `SELECT c.*,
+            p.first_name as patient_first_name,
+            p.last_name as patient_last_name,
             e.display_name as specialist_name
      FROM consultations c
      JOIN profiles p ON c.client_id = p.id
      JOIN experts e ON c.expert_id = e.id
      ORDER BY c.created_at DESC`
   );
+}
+
+// ==========================================
+// ARTICLES
+// ==========================================
+
+export interface ArticleSection {
+  heading?: string;
+  content: string[];
+}
+
+export interface ArticleRow {
+  id: string;
+  slug: string;
+  title: string;
+  tag: string;
+  read_time: string;
+  author_name: string;
+  author_role: string;
+  author_avatar: string | null;
+  summary: string;
+  content: string; // JSON-serialized ArticleSection[]
+  featured: boolean;
+  image_url: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export async function getArticles(): Promise<ArticleRow[]> {
+  return await getMany<ArticleRow>('SELECT * FROM articles ORDER BY created_at DESC');
+}
+
+export async function getArticleBySlug(slug: string): Promise<ArticleRow | null> {
+  return await getOne<ArticleRow>('SELECT * FROM articles WHERE slug = ? LIMIT 1', [slug]);
 }
 

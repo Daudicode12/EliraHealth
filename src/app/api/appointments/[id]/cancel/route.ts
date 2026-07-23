@@ -7,7 +7,7 @@ export async function PATCH(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const auth = requirePatient(req);
+  const auth = await requirePatient(req);
   if (auth instanceof NextResponse) return auth;
 
   try {

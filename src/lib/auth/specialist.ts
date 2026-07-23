@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getExpertByUserId } from "@/lib/db/queries";
+import { verifySessionToken } from "./session";
 
 export interface SpecialistSession {
   userId: string;
@@ -8,14 +9,17 @@ export interface SpecialistSession {
 
 export async function requireSpecialist(req: NextRequest): Promise<SpecialistSession | NextResponse> {
   const token = req.cookies.get("auth-token")?.value;
-  
+
   if (!token) {
     return NextResponse.json({ success: false, error: "Unauthorized: Missing token" }, { status: 401 });
   }
 
+  const decoded = await verifySessionToken(token);
+  if (!decoded) {
+    return NextResponse.json({ success: false, error: "Unauthorized: Invalid session" }, { status: 401 });
+  }
+
   try {
-    const payloadStr = token.replace("mock-jwt-", "");
-    const decoded = JSON.parse(Buffer.from(payloadStr, "base64").toString("utf-8"));
     const { id, role, status } = decoded;
 
     if (role !== "expert") {

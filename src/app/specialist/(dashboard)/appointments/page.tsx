@@ -1,8 +1,8 @@
 import { AppointmentService } from "@/services/appointment.service";
 import { getExpertByUserId } from "@/lib/db/queries";
-import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
+import { getServerSession } from "@/lib/auth/session";
 import { Calendar, CheckCircle, Clock, XCircle, UserX, AlertCircle } from "lucide-react";
 
 const STATUS_ICONS: Record<string, any> = {
@@ -24,18 +24,10 @@ const STATUS_STYLES: Record<string, string> = {
 };
 
 export default async function DoctorAppointmentsPage() {
-  const token = (await cookies()).get("auth-token")?.value;
-  let userId = token?.replace("mock-token-", "");
-  if (token?.startsWith("mock-jwt-")) {
-    try {
-      const decoded = JSON.parse(Buffer.from(token.replace("mock-jwt-", ""), "base64").toString("utf-8"));
-      userId = decoded.id;
-    } catch(e) {}
-  }
+  const session = await getServerSession();
+  if (!session) redirect("/login");
 
-  if (!userId) redirect("/login");
-
-  const doctor = await getExpertByUserId(userId);
+  const doctor = await getExpertByUserId(session.id);
   if (!doctor) redirect("/login");
 
   const appointments = await AppointmentService.getSpecialistAppointments(doctor.id, undefined, 100, 0);

@@ -1,9 +1,9 @@
 import { getMedicalRecords, createMedicalRecord, getAssignedPatients } from "@/lib/db/specialistQueries";
 import { getExpertByUserId } from "@/lib/db/queries";
-import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { FileText, Plus, User, ClipboardList, Calendar } from "lucide-react";
 import { revalidatePath } from "next/cache";
+import { getServerSession } from "@/lib/auth/session";
 
 export default async function MedicalRecordsPage({
   searchParams,
@@ -14,18 +14,10 @@ export default async function MedicalRecordsPage({
   const newPatientId = resolvedParams.new;
   const filterRecordId = resolvedParams.id;
 
-  const token = (await cookies()).get("auth-token")?.value;
-  let userId = token?.replace("mock-token-", "");
-  if (token?.startsWith("mock-jwt-")) {
-    try {
-      const decoded = JSON.parse(Buffer.from(token.replace("mock-jwt-", ""), "base64").toString("utf-8"));
-      userId = decoded.id;
-    } catch(e) {}
-  }
+  const session = await getServerSession();
+  if (!session) redirect("/login");
 
-  if (!userId) redirect("/login");
-
-  const doctor = await getExpertByUserId(userId);
+  const doctor = await getExpertByUserId(session.id);
   if (!doctor) redirect("/login");
 
   const [records, patients] = await Promise.all([
@@ -35,17 +27,10 @@ export default async function MedicalRecordsPage({
 
   async function handleCreateRecord(formData: FormData) {
     "use server";
-    const token = (await cookies()).get("auth-token")?.value;
-    let userId = token?.replace("mock-token-", "");
-    if (token?.startsWith("mock-jwt-")) {
-      try {
-        const decoded = JSON.parse(Buffer.from(token.replace("mock-jwt-", ""), "base64").toString("utf-8"));
-        userId = decoded.id;
-      } catch(e) {}
-    }
-    if (!userId) return;
-    
-    const doc = await getExpertByUserId(userId);
+    const session = await getServerSession();
+    if (!session) return;
+
+    const doc = await getExpertByUserId(session.id);
     if (!doc) return;
 
     await createMedicalRecord({

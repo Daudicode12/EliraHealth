@@ -1,8 +1,9 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
-import { getExpertByUserId } from "@/lib/db/queries";
+import { getExpertByUserId, getExpertConsultations, updateConsultationStatus } from "@/lib/db/queries";
 import { ConsultationService } from "@/services/consultation.service";
+import { getServerSession } from "@/lib/auth/session";
 import Link from "next/link";
 
 const STATUS_STYLES: Record<string, string> = {
@@ -11,7 +12,6 @@ const STATUS_STYLES: Record<string, string> = {
   completed: "bg-green-100 text-green-700",
   cancelled: "bg-red-100 text-red-700",
 };
-
 const STATUS_LABELS: Record<string, string> = {
   scheduled: "Scheduled",
   in_progress: "In Progress",
@@ -71,13 +71,18 @@ export default async function ConsultationsPage({
   const activeTab = resolvedParams.tab || "upcoming";
   const searchQuery = resolvedParams.search || "";
 
-  const token = (await cookies()).get("auth-token")?.value;
-  let userId = token?.replace("mock-token-", "");
-  if (token?.startsWith("mock-jwt-")) {
-    try {
-      const decoded = JSON.parse(Buffer.from(token.replace("mock-jwt-", ""), "base64").toString("utf-8"));
-      userId = decoded.id;
-    } catch(e) {}
+  const session = await getServerSession();
+  let userId = session?.id;
+  if (!userId) {
+    const token = (await cookies()).get("auth-token")?.value;
+    if (token?.startsWith("mock-jwt-")) {
+      try {
+        const decoded = JSON.parse(Buffer.from(token.replace("mock-jwt-", ""), "base64").toString("utf-8"));
+        userId = decoded.id;
+      } catch (e) {}
+    } else {
+      userId = token?.replace("mock-token-", "");
+    }
   }
   if (!userId) redirect("/login");
 

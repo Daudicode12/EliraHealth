@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { verifySessionToken } from "./session";
 
 export interface SessionData {
   userId: string;
@@ -6,11 +7,9 @@ export interface SessionData {
   status: string;
 }
 
-export function getSession(req: NextRequest): SessionData | null {
-  // Check cookie first (for Web Portal)
+export async function getSession(req: NextRequest): Promise<SessionData | null> {
   let token = req.cookies.get("auth-token")?.value;
-  
-  // Fallback to Authorization header (for Mobile App / Flutter Web)
+
   if (!token) {
     const authHeader = req.headers.get("authorization");
     if (authHeader && authHeader.startsWith("Bearer ")) {
@@ -18,20 +17,28 @@ export function getSession(req: NextRequest): SessionData | null {
     }
   }
 
-  if (!token || !token.startsWith("mock-jwt-")) return null;
+  if (!token) return null;
 
-  try {
-    const payloadStr = token.replace("mock-jwt-", "");
-    const decoded = JSON.parse(Buffer.from(payloadStr, "base64").toString("utf-8"));
-    return decoded as SessionData;
-  } catch (error) {
-    return null;
+  if (token.startsWith("mock-jwt-")) {
+    try {
+      const payloadStr = token.replace("mock-jwt-", "");
+      const decoded = JSON.parse(Buffer.from(payloadStr, "base64").toString("utf-8"));
+      return decoded as SessionData;
+    } catch {
+      return null;
+    }
   }
+
+  const payload = await verifySessionToken(token);
+  if (!payload) return null;
+
+  return { userId: payload.id, role: payload.role, status: payload.status };
+}
 }
 
-export function requirePatient(req: NextRequest): { userId: string } | NextResponse {
-  const session = getSession(req);
-  
+export async function requirePatient(req: NextRequest): Promise<{ userId: string } | NextResponse> {
+  const session = await getSession(req);
+
   if (!session) {
     return NextResponse.json({ success: false, error: "Unauthorized: Missing or invalid token" }, { status: 401 });
   }
@@ -43,9 +50,9 @@ export function requirePatient(req: NextRequest): { userId: string } | NextRespo
   return { userId: session.userId };
 }
 
-export function requireAdmin(req: NextRequest): { adminId: string } | NextResponse {
-  const session = getSession(req);
-  
+export async function requireAdmin(req: NextRequest): Promise<{ adminId: string } | NextResponse> {
+  const session = await getSession(req);
+
   if (!session) {
     return NextResponse.json({ success: false, error: "Unauthorized: Missing or invalid token" }, { status: 401 });
   }

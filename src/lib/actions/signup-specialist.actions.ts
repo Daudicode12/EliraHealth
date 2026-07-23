@@ -4,6 +4,8 @@
 import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
 import { createProfile, createExpert, getProfileByEmail } from "@/lib/db/queries";
+import { hashPassword } from "@/lib/auth/password";
+import { createSessionToken } from "@/lib/auth/session";
 
 export type SignupState = {
   success?: boolean;
@@ -39,12 +41,15 @@ export async function signupSpecialistAction(prevState: SignupState | null, form
       return { success: false, message: "Email is already registered" };
     }
 
+    const password_hash = await hashPassword(password);
+
     await createProfile({
       id: userId,
       email,
       first_name: firstName,
       last_name: lastName,
       role: 'expert',
+      password_hash,
     });
 
     await createExpert({
@@ -61,13 +66,12 @@ export async function signupSpecialistAction(prevState: SignupState | null, form
 
   // Set Auth Token Cookie
   try {
-    const payload = Buffer.from(JSON.stringify({
+    const token = await createSessionToken({
       id: userId,
       role: 'expert',
-      status: 'profile_incomplete'
-    })).toString('base64');
+      status: 'profile_incomplete',
+    });
 
-    const token = `mock-jwt-${payload}`;
     const cookieStore = await cookies();
     cookieStore.set("auth-token", token, {
       httpOnly: true,

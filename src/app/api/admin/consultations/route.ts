@@ -1,7 +1,11 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { getPendingConsultations } from '@/lib/db/queries';
+import { requireAdmin } from '@/lib/auth/roles';
 
-export async function GET() {
+export async function GET(req: NextRequest) {
+  const auth = await requireAdmin(req);
+  if (auth instanceof NextResponse) return auth;
+
   try {
     const consultations = await getPendingConsultations();
     return NextResponse.json(consultations);

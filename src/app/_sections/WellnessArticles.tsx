@@ -1,57 +1,21 @@
-"use client";
-
 import Link from "next/link";
 import { ScrollReveal } from "@/components/public/ScrollReveal";
+import { getArticles } from "@/lib/db/queries";
 
-const articles = [
-  {
-    slug: "understanding-endometriosis-overcoming-silent-pain",
-    title: "Understanding Endometriosis: Overcoming Silent Pain",
-    desc: "Ob-Gyn expert guidelines on symptoms, staging, diagnosis delays, and active management choices.",
-    image: "/images/article_endo_doctor.png",
-    tag: "Medical Insights",
-    readTime: "6 min read",
-    author: "Dr. Angela Mbogo, OB-GYN",
-  },
-  {
-    slug: "optimal-nutrition-fueling-cycle-pregnancy-stages",
-    title: "Optimal Nutrition: Fueling Cycle & Pregnancy Stages",
-    desc: "A comprehensive food list mapped to support hormone levels, energy reserves, and prenatal care.",
-    image: "/images/article_nutrition_food.png",
-    tag: "Nutrition & Diet",
-    readTime: "5 min read",
-    author: "Grace Wanjiku, Certified Nutritionist",
-  },
-  {
-    slug: "yoga-flexibility-reproductive-health-support",
-    title: "Yoga & Flexibility for Reproductive Health Support",
-    desc: "Gentle daily flows and breathing exercises targeting pelvic blood flow, core release, and cramps.",
-    image: "/images/article_yoga_stretch.png",
-    tag: "Fitness & Wellness",
-    readTime: "4 min read",
-    author: "Sarah Akinyi, Yoga Therapist",
-  },
-  {
-    slug: "postpartum-recovery-sleep-comfort-healing",
-    title: "Postpartum Recovery: Sleep, Comfort, and Healing",
-    desc: "Essential sleep tips, physical recovery guides, and nursery setup suggestions for new mothers.",
-    image: "/images/article_rest_comfort.png",
-    tag: "Postpartum Care",
-    readTime: "7 min read",
-    author: "Dr. Evelyn Mwangi, Pediatrician",
-  },
-  {
-    slug: "mindfulness-motherhood-mental-health-priorities",
-    title: "Mindfulness & Motherhood: Mental Health Priorities",
-    desc: "Tactics to navigate stress levels, hormone dropouts, and emotional spikes with expert counselors.",
-    image: "/images/article_mental_health.png",
-    tag: "Mental Wellness",
-    readTime: "5 min read",
-    author: "David Oloo, Mental Health Advocate",
-  },
-];
+export async function WellnessArticlesSection() {
+  const rows = await getArticles();
+  const articles = rows.map((row) => ({
+    slug: row.slug,
+    title: row.title,
+    desc: row.summary,
+    image: row.image_url,
+    tag: row.tag,
+    readTime: row.read_time,
+    author: `${row.author_name}, ${row.author_role}`,
+  }));
 
-export function WellnessArticlesSection() {
+  if (articles.length === 0) return null;
+
   return (
     <section className="py-24 lg:py-32 bg-white border-t border-slate-100">
       <div className="mx-auto max-w-7xl px-5 lg:px-8">
@@ -75,7 +39,7 @@ export function WellnessArticlesSection() {
                   <div>
                     <div className="relative h-52 w-full overflow-hidden bg-slate-50">
                       <img
-                        src={art.image}
+                        src={art.image || "/images/logo.png"}
                         alt={art.title}
                         className="w-full h-full object-cover group-hover:scale-102 transition-transform duration-500"
                       />

@@ -1,28 +1,13 @@
 import { logoutAction } from "@/lib/actions/auth.actions";
 import { DoctorSidebar } from "@/components/layout/DoctorSidebar";
-import { cookies } from "next/headers";
 import { getExpertByUserId } from "@/lib/db/queries";
+import { getServerSession } from "@/lib/auth/session";
 import { Clock, LogOut, CheckCircle2, ShieldCheck, Sparkles, Mail } from "lucide-react";
 
 export default async function DoctorLayout({ children }: { children: React.ReactNode }) {
-  const token = (await cookies()).get("auth-token")?.value;
-  let userId = '';
-  
-  if (token) {
-    const payloadStr = token.replace("mock-jwt-", "").replace("mock-token-", "");
-    try {
-      if (token.startsWith("mock-jwt-")) {
-        const decoded = JSON.parse(Buffer.from(payloadStr, "base64").toString("utf-8"));
-        userId = decoded.id;
-      } else {
-        userId = payloadStr;
-      }
-    } catch (e) {
-      userId = payloadStr;
-    }
-  }
+  const session = await getServerSession();
 
-  const expert = userId ? await getExpertByUserId(userId) : null;
+  const expert = session ? await getExpertByUserId(session.id) : null;
   const profileStatus = expert?.profile_status || 'profile_incomplete';
 
   if (profileStatus === 'pending_review') {

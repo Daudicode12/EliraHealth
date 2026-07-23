@@ -1,8 +1,8 @@
 // src/app/user/dashboard/page.tsx
-import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { getProfileById, getOne, getMany } from "@/lib/db/queries";
 import { logoutAction } from "@/lib/actions/auth.actions";
+import { getServerSession } from "@/lib/auth/session";
 import { UserDashboardClient } from "@/components/dashboard/UserDashboardClient";
 import Link from "next/link";
 import { Heart } from "lucide-react";
@@ -13,26 +13,9 @@ export const metadata = {
 };
 
 export default async function UserDashboardPage() {
-  const cookieStore = await cookies();
-  const token = cookieStore.get("auth-token")?.value;
-
-  if (!token) {
-    redirect("/login");
-  }
-
-  let userId = "";
-  try {
-    const payloadStr = token.replace("mock-jwt-", "");
-    const decoded = JSON.parse(Buffer.from(payloadStr, "base64").toString("utf-8"));
-    userId = decoded?.id || "";
-  } catch (error) {
-    console.error("Dashboard session decoding error:", error);
-    redirect("/login");
-  }
-
-  if (!userId) {
-    redirect("/login");
-  }
+  const session = await getServerSession();
+  if (!session) redirect("/login");
+  const userId = session.id;
 
   // Load core user profile
   const profile = await getProfileById(userId);

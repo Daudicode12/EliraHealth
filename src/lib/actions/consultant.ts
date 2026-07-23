@@ -11,9 +11,9 @@ import {
 } from "@/lib/db/queries";
 import { Consultation } from "@/lib/db/types";
 import { revalidatePath } from "next/cache";
-import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { z } from "zod";
+import { getServerSession, setSessionCookie } from "@/lib/auth/session";
 
 // Zod Schema for validation (without licenseNumber & medicalCouncilNumber)
 const completeProfileSchema = z.object({
@@ -76,26 +76,11 @@ export async function completeSpecialistOnboarding(data: {
   hourlyRate: number;
   practicingCertificateUrl?: string;
 }) {
-  const token = (await cookies()).get("auth-token")?.value;
-  let userId = '';
-  
-  if (token) {
-    const payloadStr = token.replace("mock-jwt-", "").replace("mock-token-", "");
-    try {
-      if (token.startsWith("mock-jwt-")) {
-        const decoded = JSON.parse(Buffer.from(payloadStr, "base64").toString("utf-8"));
-        userId = decoded.id;
-      } else {
-        userId = payloadStr;
-      }
-    } catch (e) {
-      userId = payloadStr;
-    }
-  }
-
-  if (!userId) {
+  const session = await getServerSession();
+  if (!session) {
     return { success: false, error: "Not authenticated" };
   }
+  const userId = session.id;
 
   const doctor = await getExpertByUserId(userId);
   if (!doctor) {
@@ -135,19 +120,8 @@ export async function completeSpecialistOnboarding(data: {
   // 3. Create Notification
   await createNotification(userId, "Your credentials have been submitted for review.", "info");
 
-  // 4. Update the auth JWT cookie
-  const payload = Buffer.from(JSON.stringify({
-    id: userId,
-    role: 'expert',
-    status: 'pending_review'
-  })).toString('base64');
-  
-  (await cookies()).set("auth-token", `mock-jwt-${payload}`, {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: "lax",
-    path: "/",
-  });
+  // 4. Update the auth session cookie
+  await setSessionCookie({ id: userId, role: 'expert', status: 'pending_review' });
 
   return { success: true };
 }

@@ -3,7 +3,7 @@ import { requirePatient } from "@/lib/auth/roles";
 import { AppointmentService } from "@/services/appointment.service";
 
 export async function GET(req: NextRequest) {
-  const auth = requirePatient(req);
+  const auth = await requirePatient(req);
   if (auth instanceof NextResponse) return auth;
 
   try {

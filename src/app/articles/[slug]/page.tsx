@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import { ARTICLES_DATA } from "@/lib/data/articles";
+import { getArticleBySlug, getArticles, ArticleSection } from "@/lib/db/queries";
 import { PublicLayout } from "@/components/public/PublicLayout";
 import { ArrowLeft, Clock, Calendar, ShieldCheck, ChatTeardropText } from "@phosphor-icons/react/dist/ssr";
 
@@ -10,16 +10,32 @@ interface ArticlePageProps {
 
 export default async function ArticlePage({ params }: ArticlePageProps) {
   const { slug } = await params;
-  const article = ARTICLES_DATA[slug];
+  const articleRow = await getArticleBySlug(slug);
 
-  if (!article) {
+  if (!articleRow) {
     notFound();
   }
 
+  const article = {
+    ...articleRow,
+    author: articleRow.author_name,
+    authorRole: articleRow.author_role,
+    readTime: articleRow.read_time,
+    image: articleRow.image_url,
+    date: new Date(articleRow.created_at).toLocaleDateString("en-US", {
+      month: "long",
+      day: "numeric",
+      year: "numeric",
+    }),
+    sections: JSON.parse(articleRow.content) as ArticleSection[],
+  };
+
   // Suggest other articles as reads
-  const otherArticles = Object.values(ARTICLES_DATA)
+  const allArticles = await getArticles();
+  const otherArticles = allArticles
     .filter((a) => a.slug !== slug)
-    .slice(0, 2);
+    .slice(0, 2)
+    .map((a) => ({ slug: a.slug, tag: a.tag, title: a.title, summary: a.summary }));
 
   return (
     <PublicLayout>
@@ -79,7 +95,7 @@ export default async function ArticlePage({ params }: ArticlePageProps) {
           {/* Featured Image */}
           <div className="mt-8 rounded-3xl overflow-hidden aspect-[21/9] bg-slate-100 border border-slate-200">
             <img
-              src={article.image}
+              src={article.image || "/images/logo.png"}
               alt={article.title}
               className="w-full h-full object-cover"
             />

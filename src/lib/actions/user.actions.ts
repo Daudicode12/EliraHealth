@@ -1,24 +1,17 @@
 "use server";
 
-import { cookies } from "next/headers";
 import { revalidatePath } from "next/cache";
 import { executeAction, getOne, getMany } from "@/lib/db/client";
 import { AppointmentService } from "@/services/appointment.service";
+import { getServerSession, setSessionCookie } from "@/lib/auth/session";
 
 /**
- * Reusable helper to retrieve the logged-in user's ID from the mock-jwt auth-token cookie.
+ * Reusable helper to retrieve the logged-in user's ID from the signed session cookie.
  */
 async function getAuthenticatedUserId(): Promise<string> {
-  const token = (await cookies()).get("auth-token")?.value;
-  if (!token) throw new Error("Not authenticated");
-  
-  const payloadStr = token.replace("mock-jwt-", "");
-  try {
-    const decoded = JSON.parse(Buffer.from(payloadStr, "base64").toString("utf-8"));
-    return decoded.id;
-  } catch (e) {
-    throw new Error("Invalid session token");
-  }
+  const session = await getServerSession();
+  if (!session) throw new Error("Not authenticated");
+  return session.id;
 }
 
 /**
@@ -135,19 +128,8 @@ export async function setOnboardingModeAction(data: {
     }
     
     // Update Auth Cookie to include active state
-    const payload = Buffer.from(JSON.stringify({
-      id: userId,
-      role: 'user',
-      status: 'active'
-    })).toString('base64');
-    
-    (await cookies()).set("auth-token", `mock-jwt-${payload}`, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "lax",
-      path: "/",
-    });
-    
+    await setSessionCookie({ id: userId, role: 'user', status: 'active' });
+
     revalidatePath("/user/dashboard");
     return { success: true };
   } catch (error: any) {
@@ -246,19 +228,8 @@ export async function partnerConnectAction(code: string) {
     );
     
     // Refresh auth cookie
-    const payload = Buffer.from(JSON.stringify({
-      id: userId,
-      role: 'user',
-      status: 'active'
-    })).toString('base64');
-    
-    (await cookies()).set("auth-token", `mock-jwt-${payload}`, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "lax",
-      path: "/",
-    });
-    
+    await setSessionCookie({ id: userId, role: 'user', status: 'active' });
+
     // Trigger generating initial insights
     await generatePartnerInsights(pregnantPartnerId, userId);
     

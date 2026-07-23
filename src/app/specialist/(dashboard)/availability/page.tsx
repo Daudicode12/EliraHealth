@@ -1,38 +1,25 @@
 import { getExpertByUserId, getExpertAvailability, createAvailability, executeAction } from "@/lib/db/queries";
-import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
+import { getServerSession } from "@/lib/auth/session";
 
 const DAYS_MAP = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 
 export default async function AvailabilityPage() {
-  const token = (await cookies()).get("auth-token")?.value;
-  let userId = token?.replace("mock-token-", "");
-  if (token?.startsWith("mock-jwt-")) {
-    try {
-      const decoded = JSON.parse(Buffer.from(token.replace("mock-jwt-", ""), "base64").toString("utf-8"));
-      userId = decoded.id;
-    } catch(e) {}
-  }
+  const session = await getServerSession();
+  if (!session) redirect("/login");
 
-  if (!userId) redirect("/login");
-
-  const doctor = await getExpertByUserId(userId);
+  const doctor = await getExpertByUserId(session.id);
   if (!doctor) redirect("/login");
 
   const availability = await getExpertAvailability(doctor.id);
 
   async function saveAvailability(formData: FormData) {
     "use server";
-    const token = (await cookies()).get("auth-token")?.value;
-    let userId = token?.replace("mock-token-", "");
-  if (token?.startsWith("mock-jwt-")) {
-    try {
-      const decoded = JSON.parse(Buffer.from(token.replace("mock-jwt-", ""), "base64").toString("utf-8"));
-      userId = decoded.id;
-    } catch(e) {}
-  }
-    if (!userId) return;
+    const session = await getServerSession();
+    if (!session) return;
+
+    const userId = session.id;
     
     const doctor = await getExpertByUserId(userId);
     if (!doctor) return;

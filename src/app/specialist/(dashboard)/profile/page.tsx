@@ -4,20 +4,13 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { ProfileForm } from "./ProfileForm";
 import { ShieldCheck } from "lucide-react";
+import { getServerSession } from "@/lib/auth/session";
 
 export default async function ProfilePage() {
-  const token = (await cookies()).get("auth-token")?.value;
-  let userId = token?.replace("mock-token-", "");
-  if (token?.startsWith("mock-jwt-")) {
-    try {
-      const decoded = JSON.parse(Buffer.from(token.replace("mock-jwt-", ""), "base64").toString("utf-8"));
-      userId = decoded.id;
-    } catch(e) {}
-  }
+  const session = await getServerSession();
+  if (!session) redirect("/login");
 
-  if (!userId) redirect("/login");
-
-  const doctor = await getExpertByUserId(userId);
+  const doctor = await getExpertByUserId(session.id);
   if (!doctor) redirect("/login");
 
   const userProfile = await getProfileById(userId);
@@ -27,13 +20,18 @@ export default async function ProfilePage() {
     try {
       const action = formData.get("action") as string; // 'save' or 'submit'
       
-      const token = (await cookies()).get("auth-token")?.value;
-      let actionUserId = token?.replace("mock-token-", "");
-      if (token?.startsWith("mock-jwt-")) {
-        try {
-          const decoded = JSON.parse(Buffer.from(token.replace("mock-jwt-", ""), "base64").toString("utf-8"));
-          actionUserId = decoded.id;
-        } catch(e) {}
+      const session = await getServerSession();
+      let actionUserId = session?.id;
+      if (!actionUserId) {
+        const token = (await cookies()).get("auth-token")?.value;
+        if (token?.startsWith("mock-jwt-")) {
+          try {
+            const decoded = JSON.parse(Buffer.from(token.replace("mock-jwt-", ""), "base64").toString("utf-8"));
+            actionUserId = decoded.id;
+          } catch(e) {}
+        } else {
+          actionUserId = token?.replace("mock-token-", "");
+        }
       }
       if (!actionUserId) return { success: false, error: "Unauthorized" };
       
