@@ -1,56 +1,65 @@
-import { getServerSession } from "@/lib/auth/server-session";
-import { 
-  getExpertsByStatus, 
-  approveExpert, 
-  rejectExpert, 
-  suspendExpert, 
+import {
+  getExpertsByStatus,
+  approveExpert,
+  rejectExpert,
+  suspendExpert,
   getExpertStatusCounts,
   requestMoreInfoExpert
 } from "@/lib/db/queries";
 import { revalidatePath } from "next/cache";
 import { ExpandableDoctorCard } from "@/components/admin/ExpandableDoctorCard";
-import { cookies } from "next/headers";
+import { redirect } from "next/navigation";
 import Link from "next/link";
 import { Users, FileSearch } from "lucide-react";
 import { AddSpecialistButtonWrapper } from "@/components/admin/AddSpecialistButtonWrapper";
+import { getServerSession } from "@/lib/auth/session";
+
+async function requireAdminSession() {
+  const session = await getServerSession();
+  if (!session || session.role !== "admin") redirect("/login");
+  return session;
+}
 
 export default async function AdminDoctorsPage({
   searchParams,
 }: {
   searchParams: Promise<{ tab?: string }>;
 }) {
+  await requireAdminSession();
+
   const resolvedParams = await searchParams;
   const currentTab = resolvedParams.tab || "pending";
-  
+
   const counts = await getExpertStatusCounts();
   const rawDoctors = await getExpertsByStatus(currentTab as any);
-  
+
   // Convert database row objects to plain JavaScript objects for the Client Component
   const doctors = JSON.parse(JSON.stringify(rawDoctors));
 
   async function handleApprove(id: string) {
     "use server";
-    const token = (await cookies()).get("auth-token")?.value;
-    const session = await getServerSession();
-    let adminId = session?.userId || 'system';
-    await approveExpert(id, adminId);
+    const admin = await requireAdminSession();
+    await approveExpert(id, admin.id);
     revalidatePath("/admin/doctors");
   }
 
   async function handleReject(id: string, reason: string) {
     "use server";
+    await requireAdminSession();
     await rejectExpert(id, reason);
     revalidatePath("/admin/doctors");
   }
 
   async function handleSuspend(id: string) {
     "use server";
+    await requireAdminSession();
     await suspendExpert(id);
     revalidatePath("/admin/doctors");
   }
 
   async function handleRequestInfo(id: string, reason: string) {
     "use server";
+    await requireAdminSession();
     await requestMoreInfoExpert(id, reason);
     revalidatePath("/admin/doctors");
   }

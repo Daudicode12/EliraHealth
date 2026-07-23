@@ -10,7 +10,7 @@ const showcases = [
     title: "Understand Your Body Like Never Before",
     description:
       "Our AI-powered cycle tracker learns your unique patterns over time, delivering increasingly accurate predictions for periods, fertile windows, and PMS phases. Log symptoms with a tap and visualize trends at a glance.",
-    image: "/images/cycle_feature.png",
+    image: "/images/onboarding_cycle.png",
     gradient: "from-brand/5 to-brand-blue/5",
     iconBg: "from-brand to-brand-blue",
     direction: "left" as const,
@@ -21,7 +21,7 @@ const showcases = [
     title: "Every Milestone, Beautifully Tracked",
     description:
       "From the first positive test to delivery day, track your pregnancy week by week. Monitor baby kicks, manage appointments, log symptoms, and receive timely insights about your baby's development.",
-    image: "/images/pregnancy_feature.png",
+    image: "/images/onboarding_pregnancy.png",
     gradient: "from-brand-blue/5 to-brand-pink/5",
     iconBg: "from-brand-blue to-brand-pink",
     direction: "right" as const,
@@ -32,10 +32,21 @@ const showcases = [
     title: "Verified Specialists at Your Fingertips",
     description:
       "Our curated network of OB-GYNs, nutritionists, mental health professionals, and fertility experts are available for secure consultations. AI matching ensures you find the right specialist for your needs.",
-    image: "/images/experts_feature.png",
+    image: "/images/expert.png",
     gradient: "from-brand-deep/5 to-brand/5",
     iconBg: "from-brand-deep to-brand",
     direction: "left" as const,
+  },
+  {
+    icon: BabyIcon,
+    badge: "Newborn Care Elira Suite",
+    title: "Compassionate Support for the Fourth Trimester",
+    description:
+      "Log your baby's sleep duration, feeding intervals, diapers, and growth. Access daily mental health checks and physical recovery guides tailored to your week of postpartum.",
+    image: "/images/onboarding_postpartum.png",
+    gradient: "from-brand-pink/5 to-brand/5",
+    iconBg: "from-brand-pink to-brand",
+    direction: "right" as const,
   },
 ];
 

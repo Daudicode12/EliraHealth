@@ -1,64 +1,230 @@
 // src/app/user/dashboard/page.tsx
-import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-import { getProfileById } from "@/lib/db/queries";
+import { getProfileById, getOne, getMany } from "@/lib/db/queries";
 import { logoutAction } from "@/lib/actions/auth.actions";
-import { getServerSession } from "@/lib/auth/server-session";
+import { getServerSession } from "@/lib/auth/session";
+import { UserDashboardClient } from "@/components/dashboard/UserDashboardClient";
 import Link from "next/link";
+import { Heart } from "lucide-react";
 
 export const metadata = {
-  title: "User Dashboard - Elira Health",
-  description: "View your health logs, tracking data, and consultations",
+  title: "User Dashboard - Elira Mama Care",
+  description: "Manage your health tracking logs, baby metrics, partner synchronizations, and consult medical specialists.",
 };
 
 export default async function UserDashboardPage() {
-  const cookieStore = await cookies();
-  const token = cookieStore.get("auth-token")?.value;
+  const session = await getServerSession();
+  if (!session) redirect("/login");
+  const userId = session.id;
 
-  if (!token) {
+  // Load core user profile
+  const profile = await getProfileById(userId);
+  if (!profile) {
     redirect("/login");
   }
 
-  const session = await getServerSession();
+  // Fetch verified experts
+  const experts = await getMany<any>(
+    "SELECT id, display_name, specialties, hospital_name, avatar_url FROM experts WHERE profile_status = 'approved'"
+  );
 
-  let profileName = "User";
-  let profileEmail = "";
+  // Initialize modes and connection variables
+  let appointments: any[] = [];
+  let connectedPartner: any = null;
+  let cycleSymptoms: any[] = [];
+  let pregnancySymptoms: any[] = [];
+  let babyKicks: any[] = [];
+  let feedingSessions: any[] = [];
+  let babySleepLogs: any[] = [];
+  let babyWeightLogs: any[] = [];
+  let moodRecords: any[] = [];
+  let partnerInsights: any[] = [];
+  let pregnancyDetails: any = null;
+  let postpartumDetails: any = null;
+  let partnerCode: string | null = null;
 
-  try {
-    if (session?.userId) {
-      const profile = await getProfileById(session.userId);
-      if (profile) {
-        profileName = `${profile.first_name} ${profile.last_name}`;
-        profileEmail = profile.email || "";
-      }
+  // Resolve partner status and upcoming appointments
+  if (profile.current_cycle_mode === "partner") {
+    // Current user is the partner, look up connected patient (mother)
+    const link = await getOne<any>(
+      `SELECT p.*, prof.first_name, prof.last_name, prof.email, prof.current_cycle_mode as partner_mode, prof.id as partner_user_id 
+       FROM partners p 
+       JOIN profiles prof ON p.user_id = prof.id 
+       WHERE p.partner_id = ? LIMIT 1`,
+      [userId]
+    );
+    if (link) {
+      connectedPartner = link;
+      appointments = await getMany<any>(
+        `SELECT a.*, e.display_name as specialist_name 
+         FROM appointments a 
+         JOIN experts e ON a.specialist_id = e.id 
+         WHERE a.patient_id = ? 
+         ORDER BY a.appointment_date ASC, a.start_time ASC`,
+        [link.user_id]
+      );
     }
-  } catch (error) {
-    console.error("Dashboard profile load error:", error);
+  } else {
+    // Current user is the patient (tracking/pregnant/postpartum)
+    appointments = await getMany<any>(
+      `SELECT a.*, e.display_name as specialist_name 
+       FROM appointments a 
+       JOIN experts e ON a.specialist_id = e.id 
+       WHERE a.patient_id = ? 
+       ORDER BY a.appointment_date ASC, a.start_time ASC`,
+      [userId]
+    );
+
+    // Look up if they have any connected partner
+    const link = await getOne<any>(
+      `SELECT p.*, prof.first_name, prof.last_name, prof.email 
+       FROM partners p 
+       JOIN profiles prof ON p.partner_id = prof.id 
+       WHERE p.user_id = ? LIMIT 1`,
+      [userId]
+    );
+    if (link) {
+      connectedPartner = link;
+    }
   }
+
+  let latestCycle: any = null;
+
+  // Load mode-specific details
+  if (profile.current_cycle_mode === "tracking") {
+    cycleSymptoms = await getMany<any>(
+      "SELECT * FROM symptoms WHERE user_id = ? ORDER BY date DESC LIMIT 10",
+      [userId]
+    );
+    latestCycle = await getOne<any>(
+      "SELECT * FROM menstrual_cycles WHERE user_id = ? ORDER BY start_date DESC LIMIT 1",
+      [userId]
+    );
+    const invitation = await getOne<{ invitation_code: string }>(
+      "SELECT invitation_code FROM partner_invitations WHERE invited_by_user_id = ? AND status = 'pending' LIMIT 1",
+      [userId]
+    );
+    partnerCode = invitation?.invitation_code || null;
+
+  } else if (profile.current_cycle_mode === "pregnant") {
+    pregnancyDetails = await getOne<any>(
+      "SELECT * FROM pregnancies WHERE user_id = ? AND pregnancy_status = 'ongoing' LIMIT 1",
+      [userId]
+    );
+    if (pregnancyDetails) {
+      pregnancySymptoms = await getMany<any>(
+        "SELECT * FROM pregnancy_symptoms WHERE user_id = ? AND pregnancy_id = ? ORDER BY date DESC LIMIT 10",
+        [userId, pregnancyDetails.id]
+      );
+      babyKicks = await getMany<any>(
+        "SELECT * FROM baby_kicks WHERE user_id = ? AND pregnancy_id = ? ORDER BY kick_time DESC LIMIT 10",
+        [userId, pregnancyDetails.id]
+      );
+    }
+    const invitation = await getOne<{ invitation_code: string }>(
+      "SELECT invitation_code FROM partner_invitations WHERE invited_by_user_id = ? AND status = 'pending' LIMIT 1",
+      [userId]
+    );
+    partnerCode = invitation?.invitation_code || null;
+
+  } else if (profile.current_cycle_mode === "postpartum") {
+    postpartumDetails = await getOne<any>(
+      "SELECT * FROM postpartum_journeys WHERE user_id = ? LIMIT 1",
+      [userId]
+    );
+    if (postpartumDetails) {
+      feedingSessions = await getMany<any>(
+        "SELECT * FROM feeding_sessions WHERE user_id = ? AND postpartum_journey_id = ? ORDER BY start_time DESC LIMIT 10",
+        [userId, postpartumDetails.id]
+      );
+      babySleepLogs = await getMany<any>(
+        "SELECT * FROM baby_sleep WHERE user_id = ? AND postpartum_journey_id = ? ORDER BY start_time DESC LIMIT 10",
+        [userId, postpartumDetails.id]
+      );
+      babyWeightLogs = await getMany<any>(
+        "SELECT * FROM baby_weights WHERE user_id = ? AND postpartum_journey_id = ? ORDER BY record_date DESC LIMIT 10",
+        [userId, postpartumDetails.id]
+      );
+      moodRecords = await getMany<any>(
+        "SELECT * FROM mood_records WHERE user_id = ? AND postpartum_journey_id = ? ORDER BY record_date DESC LIMIT 10",
+        [userId, postpartumDetails.id]
+      );
+    }
+    const invitation = await getOne<{ invitation_code: string }>(
+      "SELECT invitation_code FROM partner_invitations WHERE invited_by_user_id = ? AND status = 'pending' LIMIT 1",
+      [userId]
+    );
+    partnerCode = invitation?.invitation_code || null;
+
+  } else if (profile.current_cycle_mode === "partner" && connectedPartner) {
+    const partnerId = connectedPartner.partner_user_id;
+    partnerInsights = await getMany<any>(
+      "SELECT * FROM partner_insights WHERE partner_id = ? ORDER BY insight_date DESC LIMIT 5",
+      [userId]
+    );
+
+    if (connectedPartner.partner_mode === "pregnant") {
+      pregnancyDetails = await getOne<any>(
+        "SELECT * FROM pregnancies WHERE user_id = ? AND pregnancy_status = 'ongoing' LIMIT 1",
+        [partnerId]
+      );
+      if (pregnancyDetails) {
+        pregnancySymptoms = await getMany<any>(
+          "SELECT * FROM pregnancy_symptoms WHERE user_id = ? AND pregnancy_id = ? ORDER BY date DESC LIMIT 10",
+          [partnerId, pregnancyDetails.id]
+        );
+      }
+    } else if (connectedPartner.partner_mode === "postpartum") {
+      postpartumDetails = await getOne<any>(
+        "SELECT * FROM postpartum_journeys WHERE user_id = ? LIMIT 1",
+        [partnerId]
+      );
+      if (postpartumDetails) {
+        moodRecords = await getMany<any>(
+          "SELECT * FROM mood_records WHERE user_id = ? AND postpartum_journey_id = ? ORDER BY record_date DESC LIMIT 10",
+          [partnerId, postpartumDetails.id]
+        );
+      }
+    } else if (connectedPartner.partner_mode === "tracking") {
+      cycleSymptoms = await getMany<any>(
+        "SELECT * FROM symptoms WHERE user_id = ? ORDER BY date DESC LIMIT 10",
+        [partnerId]
+      );
+      latestCycle = await getOne<any>(
+        "SELECT * FROM menstrual_cycles WHERE user_id = ? ORDER BY start_date DESC LIMIT 1",
+        [partnerId]
+      );
+    }
+  }
+
+  const profileName = `${profile.first_name || ""} ${profile.last_name || ""}`.trim() || "User";
+  const profileEmail = profile.email || "";
 
   return (
     <div className="min-h-screen bg-slate-50/50">
       {/* Top Banner/Header */}
-      <header className="sticky top-0 z-30 bg-white border-b border-slate-100 px-6 py-4 flex items-center justify-between shadow-sm">
+      <header className="sticky top-0 z-30 bg-white/80 backdrop-blur-md border-b border-slate-100 px-6 py-4 flex items-center justify-between shadow-sm">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-brand to-brand-deep flex items-center justify-center text-white font-extrabold text-lg shadow-sm">
-            E
-          </div>
-          <div>
-            <h1 className="text-lg font-bold tracking-tight text-slate-900">Elira Mama Care</h1>
-            <p className="text-xs text-muted-foreground">Health Portal</p>
-          </div>
+          <Link href="/" className="flex items-center gap-2 group">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-brand to-brand-deep flex items-center justify-center text-white shadow-md shadow-brand/20 transition-transform group-hover:scale-105">
+              <Heart className="h-5 w-5 fill-white text-white" />
+            </div>
+            <div>
+              <h1 className="text-lg font-bold tracking-tight text-slate-900">Elira Mama Care</h1>
+              <p className="text-xs text-muted-foreground font-medium">Patient Dashboard</p>
+            </div>
+          </Link>
         </div>
 
         <div className="flex items-center gap-4">
           <div className="text-right hidden sm:block">
-            <p className="text-sm font-semibold text-slate-800">{profileName}</p>
-            <p className="text-xs text-muted-foreground">{profileEmail}</p>
+            <p className="text-sm font-bold text-slate-800">{profileName}</p>
+            <p className="text-xs text-muted-foreground font-semibold">{profileEmail}</p>
           </div>
           <form action={logoutAction}>
             <button
               type="submit"
-              className="text-xs font-semibold text-slate-600 hover:text-slate-900 border border-slate-200 hover:bg-slate-50 px-3.5 py-2 rounded-lg transition-colors cursor-pointer"
+              className="text-xs font-bold text-slate-600 hover:text-slate-900 border border-slate-200 hover:bg-slate-50 px-3.5 py-2.5 rounded-xl transition-all cursor-pointer shadow-sm active:translate-y-0"
             >
               Log out
             </button>
@@ -67,126 +233,41 @@ export default async function UserDashboardPage() {
       </header>
 
       {/* Main Content Area */}
-      <main className="max-w-7xl mx-auto p-6 md:p-8 space-y-8">
-        {/* Welcome Section */}
-        <div className="bg-gradient-to-r from-brand/10 via-brand-pink/5 to-white border border-brand/10 rounded-2xl p-6 md:p-8 flex flex-col md:flex-row items-center justify-between gap-6 shadow-sm">
-          <div className="space-y-2 text-center md:text-left">
-            <h2 className="text-2xl md:text-3xl font-extrabold text-slate-950">
-              Welcome back, {profileName.split(" ")[0]}!
-            </h2>
-            <p className="text-sm text-slate-600 max-w-xl">
-              Track your daily wellness logs, consult with certified medical experts, and keep record of your maternal progress securely.
-            </p>
-          </div>
-          <div className="flex gap-3">
-            <button className="bg-brand hover:bg-brand-deep text-white text-sm font-semibold px-5 py-2.5 rounded-xl shadow-md shadow-brand/20 transition-all hover:-translate-y-0.5 active:translate-y-0 cursor-pointer">
-              Log Today's Symptoms
-            </button>
-            <button className="bg-white hover:bg-slate-50 text-slate-800 text-sm font-semibold px-5 py-2.5 rounded-xl border border-slate-200 shadow-sm transition-all hover:-translate-y-0.5 active:translate-y-0 cursor-pointer">
-              Book Doctor
-            </button>
-          </div>
-        </div>
-
-        {/* Dashboard Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {/* Card 1: Menstrual Health Tracking */}
-          <div className="bg-white border border-slate-100 rounded-2xl p-6 space-y-4 shadow-sm">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-brand/10 text-brand">
-                Cycle Tracking
-              </span>
-              <span className="text-xs text-muted-foreground">Updated today</span>
-            </div>
-            <div>
-              <h3 className="text-2xl font-black text-slate-900">Day 14</h3>
-              <p className="text-sm font-medium text-slate-700 mt-1">Ovulation Phase (Fertile Window)</p>
-              <p className="text-xs text-muted-foreground mt-2">
-                Your next cycle is predicted to start in approximately 14 days.
-              </p>
-            </div>
-            <div className="pt-2">
-              <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
-                <div className="bg-brand h-full rounded-full w-[50%]" />
-              </div>
-            </div>
-          </div>
-
-          {/* Card 2: Upcoming Consultations */}
-          <div className="bg-white border border-slate-100 rounded-2xl p-6 space-y-4 shadow-sm">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-100">
-                Consultations
-              </span>
-              <span className="text-xs text-slate-400">0 Scheduled</span>
-            </div>
-            <div className="py-2 flex flex-col items-center justify-center text-center space-y-2">
-              <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center text-slate-400">
-                📅
-              </div>
-              <div>
-                <p className="text-sm font-bold text-slate-800">No upcoming meetings</p>
-                <p className="text-xs text-slate-500 mt-1 max-w-[200px]">
-                  Need professional advice? Request a match or schedule an appointment.
-                </p>
-              </div>
-            </div>
-            <button className="w-full border border-slate-200 hover:bg-slate-50 text-xs font-semibold text-slate-700 py-2.5 rounded-lg transition-colors cursor-pointer">
-              Schedule Specialist Match
-            </button>
-          </div>
-
-          {/* Card 3: Medical Records */}
-          <div className="bg-white border border-slate-100 rounded-2xl p-6 space-y-4 shadow-sm">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-brand-pink/10 text-brand-pink">
-                Medical Records
-              </span>
-              <span className="text-xs text-slate-400">Protected</span>
-            </div>
-            <div className="space-y-3">
-              <div className="flex items-center justify-between p-3 bg-slate-50 rounded-xl border border-slate-100">
-                <div className="flex items-center gap-2">
-                  <span className="text-lg">📋</span>
-                  <div>
-                    <p className="text-xs font-semibold text-slate-800">General Treatment Record</p>
-                    <p className="text-[10px] text-slate-400">No records found</p>
-                  </div>
-                </div>
-              </div>
-              <div className="flex items-center justify-between p-3 bg-slate-50 rounded-xl border border-slate-100">
-                <div className="flex items-center gap-2">
-                  <span className="text-lg">💊</span>
-                  <div>
-                    <p className="text-xs font-semibold text-slate-800">Prescriptions</p>
-                    <p className="text-[10px] text-slate-400">No active medications</p>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Support CTA Banner */}
-        <div className="bg-white border border-slate-100 rounded-2xl p-6 flex flex-col md:flex-row items-center justify-between gap-6 shadow-sm">
-          <div className="flex items-center gap-4 text-center md:text-left flex-col md:flex-row">
-            <div className="w-12 h-12 rounded-full bg-slate-100 flex items-center justify-center text-xl">
-              🏥
-            </div>
-            <div>
-              <h3 className="font-bold text-slate-800">Access to 24/7 Clinical Network Support</h3>
-              <p className="text-xs text-slate-500 mt-0.5">
-                Our support team and on-duty general practitioners are always here to guide you.
-              </p>
-            </div>
-          </div>
-          <a
-            href="mailto:support@elirahealth.com"
-            className="text-xs font-bold text-brand hover:underline flex items-center gap-1 flex-shrink-0"
-          >
-            Contact Support &rarr;
-          </a>
-        </div>
+      <main className="max-w-7xl mx-auto p-6 md:p-8">
+        <UserDashboardClient
+          profile={{
+            id: profile.id,
+            email: profile.email || null,
+            first_name: profile.first_name || null,
+            last_name: profile.last_name || null,
+            role: profile.role,
+            phone_number: profile.phone_number || null,
+            current_cycle_mode: profile.current_cycle_mode || null,
+            average_cycle_length: profile.average_cycle_length || 28,
+            average_period_length: profile.average_period_length || 5,
+          }}
+          experts={experts}
+          appointments={appointments}
+          partnerCode={partnerCode}
+          connectedPartner={connectedPartner ? {
+            first_name: connectedPartner.first_name,
+            last_name: connectedPartner.last_name,
+            email: connectedPartner.email,
+            partner_mode: connectedPartner.partner_mode || "",
+            partner_user_id: connectedPartner.partner_user_id || "",
+          } : null}
+          cycleSymptoms={cycleSymptoms}
+          pregnancySymptoms={pregnancySymptoms}
+          babyKicks={babyKicks}
+          feedingSessions={feedingSessions}
+          babySleepLogs={babySleepLogs}
+          babyWeightLogs={babyWeightLogs}
+          moodRecords={moodRecords}
+          partnerInsights={partnerInsights}
+          pregnancyDetails={pregnancyDetails}
+          postpartumDetails={postpartumDetails}
+          latestCycle={latestCycle}
+        />
       </main>
     </div>
   );

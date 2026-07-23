@@ -2,16 +2,15 @@ import Link from "next/link";
 import { AlertCircle } from "lucide-react";
 import { logoutAction } from "@/lib/actions/auth.actions";
 import { getExpertByUserId } from "@/lib/db/queries";
-import { cookies } from "next/headers";
-import { getServerSession } from "@/lib/auth/server-session";
+import { getServerSession } from "@/lib/auth/session";
 
 export default async function ApplicationRejectedPage() {
   const session = await getServerSession();
   let rejectionReason = "Missing documentation or unverified credentials.";
-  
-  if (session?.userId) {
+
+  if (session) {
     try {
-      const expert = await getExpertByUserId(session.userId);
+      const expert = await getExpertByUserId(session.id);
       if (expert?.rejection_reason) {
         rejectionReason = expert.rejection_reason;
       }

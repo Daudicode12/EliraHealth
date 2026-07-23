@@ -35,16 +35,16 @@ export function HeroSection() {
 
       <div className="mx-auto max-w-7xl px-5 lg:px-8 relative flex flex-col items-center">
         <div className="max-w-3xl mx-auto space-y-8 text-center flex flex-col items-center">
-          <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold leading-[1.1] tracking-tight">
+          <h1 className="text-5xl md:text-6xl lg:text-7xl font-extrabold leading-[1.08] tracking-tight font-heading text-slate-900">
             Your Complete{" "}
             <span className="gradient-text">Women&apos;s Health</span>{" "}
             Companion
           </h1>
 
-          <p className="text-lg text-muted-foreground leading-relaxed max-w-2xl">
-            Experience personalized care through our two specialized suites: 
-            use <strong className="text-brand font-semibold">Elira Cycles</strong> for cycle tracking and period health, and 
-            use <strong className="text-brand-pink font-semibold">Mama Care Elira</strong> for pregnancy and postpartum journey tracking.
+          <p className="text-lg md:text-xl text-muted-foreground leading-relaxed max-w-2xl font-medium">
+            Experience personalized care through our specialized suites: 
+            use <strong className="text-brand font-bold">Elira Cycles</strong> for cycle tracking and period health, and 
+            use <strong className="text-brand-pink font-bold">Mama Care Elira</strong> for pregnancy and postpartum journey tracking.
           </p>
 
           <div className="flex flex-col sm:flex-row gap-4 justify-center w-full">

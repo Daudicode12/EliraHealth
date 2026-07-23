@@ -5,10 +5,13 @@ import { signAccessToken } from '@/lib/auth/jwt';
 import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
 import { getProfileByEmail, getExpertByUserId } from "@/lib/db/queries";
+import { verifyPassword } from "@/lib/auth/password";
+import { createSessionToken } from "@/lib/auth/session";
 
 export async function loginAction(formData: FormData) {
   const email = formData.get("email") as string;
-  
+  const password = formData.get("password") as string;
+
   let profile;
   try {
     profile = await getProfileByEmail(email);
@@ -17,7 +20,12 @@ export async function loginAction(formData: FormData) {
     return { error: "Database connection failed" };
   }
 
-  if (!profile) {
+  if (!profile || !profile.password_hash) {
+    return { error: "Invalid credentials" };
+  }
+
+  const passwordValid = await verifyPassword(password, profile.password_hash);
+  if (!passwordValid) {
     return { error: "Invalid credentials" };
   }
 
@@ -49,13 +57,12 @@ export async function loginAction(formData: FormData) {
       }
     }
 
-    // Create a simple payload. In a real app, this would be a signed JWT.
-    const token = signAccessToken({
-      userId: profile.id,
-      email: null,
+    const token = await createSessionToken({
+      id: profile.id,
       role: profile.role,
-      status: status
+      status: status,
     });
+
     const cookieStore = await cookies();
     cookieStore.set("auth-token", token, {
       httpOnly: true,

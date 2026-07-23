@@ -7,23 +7,21 @@ import {
   approveConsultationAction,
   rejectConsultationAction
 } from "@/lib/actions/admin";
-import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { Calendar, CheckCircle, Clock, XCircle, UserX, AlertCircle, MessageSquare } from "lucide-react";
 import { ExpandableApprovalCard } from "@/components/admin/ExpandableApprovalCard";
+import { getServerSession } from "@/lib/auth/session";
 
 export default async function AdminAppointmentsPage({
   searchParams,
 }: {
   searchParams: Promise<{ tab?: string }>;
 }) {
-  const token = (await cookies()).get("auth-token")?.value;
   const session = await getServerSession();
-  let userId = session?.userId || 'system';
-  if (!userId) {
-    redirect("/login");
-  }
+  if (!session || session.role !== "admin") redirect("/login");
+  const adminId = session.id;
+
   const resolvedParams = await searchParams;
   const currentTab = resolvedParams.tab || "appointments";
 

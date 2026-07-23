@@ -1,19 +1,16 @@
 import { getServerSession } from "@/lib/auth/server-session";
 import { getAssignedPatients } from "@/lib/db/specialistQueries";
 import { getExpertByUserId } from "@/lib/db/queries";
-import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { UserCircle } from "lucide-react";
+import { getServerSession } from "@/lib/auth/session";
 
 export default async function PatientsPage() {
-  const token = (await cookies()).get("auth-token")?.value;
   const session = await getServerSession();
-    let userId = session?.userId || 'system';
+  if (!session) redirect("/login");
 
-  if (!userId) redirect("/login");
-
-  const doctor = await getExpertByUserId(userId);
+  const doctor = await getExpertByUserId(session.id);
   if (!doctor) redirect("/login");
 
   const patients = await getAssignedPatients(doctor.id) as any[];

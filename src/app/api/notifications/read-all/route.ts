@@ -4,7 +4,6 @@ import { markAllAsRead } from "@/lib/services/notification.service";
 
 export async function PATCH(req: NextRequest) {
   const session = await getSession(req);
-  if (session instanceof NextResponse) return session;
   if (!session) {
     return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
   }

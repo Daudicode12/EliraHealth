@@ -9,6 +9,8 @@ export interface ConsultationRecord {
   appointment_id: string;
   patient_id: string;
   specialist_id: string;
+  client_id?: string;
+  expert_id?: string;
   status: 'scheduled' | 'in_progress' | 'completed' | 'cancelled';
   started_at: string | null;
   ended_at: string | null;
@@ -272,12 +274,15 @@ export const ConsultationService = {
       message += ` A follow-up has been scheduled for ${notes.follow_up_date || 'a future date'}.`;
     }
     
-    const patient = await getProfileById(consultation.patient_id);
-    const specialist = await getExpertById(consultation.specialist_id);
+    const patientId = (consultation.client_id || consultation.patient_id) as string;
+    const specId = (consultation.expert_id || consultation.specialist_id || specialistId) as string;
+
+    const patient = await getProfileById(patientId);
+    const specialist = await getExpertById(specId);
 
     if (patient && patient.email && specialist) {
       await sendNotificationAndEmail({
-        userId: consultation.patient_id,
+        userId: patientId,
         emailTo: patient.email as string,
         emailSubject: "Elira Health - Consultation Completed",
         title: "Consultation Completed",

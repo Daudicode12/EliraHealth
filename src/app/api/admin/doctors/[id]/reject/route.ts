@@ -1,10 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { rejectExpert } from '@/lib/db/queries';
+import { requireAdmin } from '@/lib/auth/roles';
 
 export async function PATCH(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const auth = await requireAdmin(req);
+  if (auth instanceof NextResponse) return auth;
+
   try {
     const { id } = await params;
     const body = await req.json();
@@ -15,9 +19,7 @@ export async function PATCH(
     }
 
     await rejectExpert(id, reason);
-    
-    // TODO: Create notification
-    
+
     return NextResponse.json({ success: true, message: 'Expert application rejected' });
   } catch (error) {
     console.error('Reject Expert Error:', error);

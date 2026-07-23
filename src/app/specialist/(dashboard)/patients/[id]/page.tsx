@@ -1,10 +1,10 @@
 import { getServerSession } from "@/lib/auth/server-session";
 import { getPatientDetailsForSpecialist } from "@/lib/db/specialistQueries";
 import { getExpertByUserId } from "@/lib/db/queries";
-import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft, FileText, Calendar } from "lucide-react";
+import { getServerSession } from "@/lib/auth/session";
 
 export default async function PatientDetailsPage({
   params,
@@ -12,14 +12,11 @@ export default async function PatientDetailsPage({
   params: Promise<{ id: string }>;
 }) {
   const { id: patientId } = await params;
-  
-  const token = (await cookies()).get("auth-token")?.value;
+
   const session = await getServerSession();
-    let userId = session?.userId || 'system';
+  if (!session) redirect("/login");
 
-  if (!userId) redirect("/login");
-
-  const doctor = await getExpertByUserId(userId);
+  const doctor = await getExpertByUserId(session.id);
   if (!doctor) redirect("/login");
 
   const details = await getPatientDetailsForSpecialist(doctor.id, patientId);

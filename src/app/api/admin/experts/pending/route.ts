@@ -1,9 +1,12 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { getPendingExperts } from '@/lib/db/queries';
+import { requireAdmin } from '@/lib/auth/roles';
 
-export async function GET() {
+export async function GET(req: NextRequest) {
+  const auth = await requireAdmin(req);
+  if (auth instanceof NextResponse) return auth;
+
   try {
-    // Role check should be handled by middleware, but we'll keep it in mind
     const experts = await getPendingExperts();
     return NextResponse.json(experts);
   } catch (error) {

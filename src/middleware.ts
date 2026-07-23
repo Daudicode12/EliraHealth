@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { verifySessionToken } from "@/lib/auth/session";
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
@@ -24,15 +25,14 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(new URL("/login", request.url));
   }
 
+  const decoded = await verifySessionToken(token);
+  if (!decoded) {
+    const response = NextResponse.redirect(new URL("/login", request.url));
+    response.cookies.delete("auth-token");
+    return response;
+  }
+
   try {
-    // Decode standard JWT payload
-    const parts = token.split('.');
-    if (parts.length !== 3) throw new Error("Invalid token format");
-    
-    // Base64url to base64
-    const base64 = parts[1].replace(/-/g, '+').replace(/_/g, '/');
-    const payloadStr = atob(base64);
-    const decoded = JSON.parse(payloadStr);
     const { role, status } = decoded;
 
     // Specialist Route Protection

@@ -47,10 +47,12 @@ export function Navbar() {
           }`}
         >
           {/* Logo */}
-          <Link href="/" className="flex items-center gap-2.5 group">
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-brand to-brand-deep shadow-md shadow-brand/20 transition-transform group-hover:scale-105">
-              <Heart weight="fill" className="h-5 w-5 text-white" />
-            </div>
+          <Link href="/" className="flex items-center gap-2 group">
+            <img 
+              src="/images/logo.png" 
+              alt="Elira Health Logo" 
+              className="h-8 w-8 object-contain transition-transform duration-300 group-hover:scale-105"
+            />
             <span className="text-lg font-bold tracking-tight">
               <span className="gradient-text">Elira</span>{" "}
               <span className="text-foreground/80">Health</span>
@@ -83,13 +85,7 @@ export function Navbar() {
 
           {/* Desktop CTAs */}
           <div className="hidden md:flex items-center gap-3">
-            <Link
-              href="/signup/specialist"
-              className="text-sm font-semibold text-muted-foreground hover:text-foreground transition-colors px-3 py-2 rounded-lg hover:bg-accent/40"
-            >
-              Join as Specialist
-            </Link>
-            <span className="text-muted-foreground/30 text-sm">|</span>
+
             <Link
               href="/login"
               className="text-sm font-semibold text-muted-foreground hover:text-foreground transition-colors px-3.5 py-2 rounded-lg hover:bg-accent/40"
@@ -145,13 +141,7 @@ export function Navbar() {
               })}
             </div>
             <div className="pt-4 border-t border-border flex flex-col gap-3">
-              <Link
-                href="/signup/specialist"
-                onClick={() => setOpen(false)}
-                className="flex w-full items-center justify-center px-4 py-3 text-sm font-semibold text-muted-foreground rounded-xl border border-border hover:bg-accent hover:text-foreground transition-all duration-200"
-              >
-                Join as Specialist
-              </Link>
+
               <div className="flex gap-3">
                 <Link
                   href="/login"

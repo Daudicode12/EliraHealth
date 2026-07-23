@@ -1,29 +1,26 @@
 import { getServerSession } from "@/lib/auth/server-session";
 import { getExpertByUserId, getExpertAvailability, createAvailability, executeAction } from "@/lib/db/queries";
-import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
+import { getServerSession } from "@/lib/auth/session";
 
 const DAYS_MAP = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 
 export default async function AvailabilityPage() {
-  const token = (await cookies()).get("auth-token")?.value;
   const session = await getServerSession();
-    let userId = session?.userId || 'system';
+  if (!session) redirect("/login");
 
-  if (!userId) redirect("/login");
-
-  const doctor = await getExpertByUserId(userId);
+  const doctor = await getExpertByUserId(session.id);
   if (!doctor) redirect("/login");
 
   const availability = await getExpertAvailability(doctor.id);
 
   async function saveAvailability(formData: FormData) {
     "use server";
-    const token = (await cookies()).get("auth-token")?.value;
     const session = await getServerSession();
-    let userId = session?.userId || 'system';
-    if (!userId) return;
+    if (!session) return;
+
+    const userId = session.id;
     
     const doctor = await getExpertByUserId(userId);
     if (!doctor) return;

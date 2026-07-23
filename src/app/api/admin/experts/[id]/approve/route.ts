@@ -1,14 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { approveExpert } from '@/lib/db/queries';
+import { requireAdmin } from '@/lib/auth/roles';
 
 export async function PATCH(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const auth = await requireAdmin(req);
+  if (auth instanceof NextResponse) return auth;
+
   try {
     const { id } = await params;
-    const adminId = 'system'; // TODO: extract from session/cookie if available
-    await approveExpert(id, adminId);
+    await approveExpert(id, auth.adminId);
     return NextResponse.json({ success: true, message: 'Expert approved successfully' });
   } catch (error) {
     console.error('Approve Expert Error:', error);

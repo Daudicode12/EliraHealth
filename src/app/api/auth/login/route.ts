@@ -32,12 +32,9 @@ export async function POST(req: NextRequest) {
     const jwtPayload = {
       userId: profile.id,
       role: profile.role,
-      email: profile.email,
-      status: profile.status || 'active'
-    };
-
-    const accessToken = signAccessToken(jwtPayload);
-    const refreshToken = signRefreshToken(jwtPayload);
+      status: (profile as any).status || 'active'
+    });
+    const mockToken = `mock-jwt-\${Buffer.from(payload).toString('base64')}`;
     
     const response = NextResponse.json({
       success: true,

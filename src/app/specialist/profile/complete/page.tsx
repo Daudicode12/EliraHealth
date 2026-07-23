@@ -1,17 +1,15 @@
 import { getServerSession } from '@/lib/auth/server-session';
 // src/app/specialist/profile/complete/page.tsx
 import { getExpertByUserId } from "@/lib/db/queries";
-import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import OnboardingWizard from "./OnboardingWizard";
+import { getServerSession } from "@/lib/auth/session";
 
 export default async function CompleteProfilePage() {
   const session = await getServerSession();
-  const userId = session?.userId;
+  if (!session) redirect("/login");
 
-  if (!userId) redirect("/login");
-
-  const doctor = await getExpertByUserId(userId);
+  const doctor = await getExpertByUserId(session.id);
   if (!doctor) redirect("/login");
 
   // If they are already approved, send them to dashboard

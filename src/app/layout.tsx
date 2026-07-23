@@ -30,6 +30,11 @@ export const metadata: Metadata = {
     "expert consultations",
     "health platform",
   ],
+  icons: {
+    icon: "/images/logo.png",
+    shortcut: "/images/logo.png",
+    apple: "/images/logo.png",
+  },
   openGraph: {
     title: "Elira Health — Your Complete Women's Health Companion",
     description:

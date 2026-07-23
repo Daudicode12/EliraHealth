@@ -1,15 +1,14 @@
 import { getServerSession } from '@/lib/auth/server-session';
 import { logoutAction } from "@/lib/actions/auth.actions";
 import { DoctorSidebar } from "@/components/layout/DoctorSidebar";
-import { cookies } from "next/headers";
 import { getExpertByUserId } from "@/lib/db/queries";
+import { getServerSession } from "@/lib/auth/session";
 import { Clock, LogOut, CheckCircle2, ShieldCheck, Sparkles, Mail } from "lucide-react";
 
 export default async function DoctorLayout({ children }: { children: React.ReactNode }) {
   const session = await getServerSession();
-  const userId = session?.userId;
 
-  const expert = userId ? await getExpertByUserId(userId) : null;
+  const expert = session ? await getExpertByUserId(session.id) : null;
   const profileStatus = expert?.profile_status || 'profile_incomplete';
 
   if (profileStatus === 'pending_review') {

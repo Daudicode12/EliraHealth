@@ -1,9 +1,9 @@
 import { getServerSession } from "@/lib/auth/server-session";
 import { AppointmentService } from "@/services/appointment.service";
 import { getExpertByUserId } from "@/lib/db/queries";
-import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
+import { getServerSession } from "@/lib/auth/session";
 import { Calendar, CheckCircle, Clock, XCircle, UserX, AlertCircle } from "lucide-react";
 
 const STATUS_ICONS: Record<string, any> = {
@@ -25,13 +25,10 @@ const STATUS_STYLES: Record<string, string> = {
 };
 
 export default async function DoctorAppointmentsPage() {
-  const token = (await cookies()).get("auth-token")?.value;
   const session = await getServerSession();
-    let userId = session?.userId || 'system';
+  if (!session) redirect("/login");
 
-  if (!userId) redirect("/login");
-
-  const doctor = await getExpertByUserId(userId);
+  const doctor = await getExpertByUserId(session.id);
   if (!doctor) redirect("/login");
 
   const appointments = await AppointmentService.getSpecialistAppointments(doctor.id, undefined, 100, 0);

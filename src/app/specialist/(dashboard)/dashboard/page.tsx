@@ -2,19 +2,16 @@
 import { getExpertByUserId } from "@/lib/db/queries";
 import { getSpecialistDashboardStats } from "@/lib/db/specialistQueries";
 import { AppointmentService } from "@/services/appointment.service";
-import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { getServerSession } from "@/lib/auth/server-session";
 import { Users, FileText, CalendarCheck, Clock, Stethoscope, ShieldCheck, Sparkles, Lock } from "lucide-react";
+import { getServerSession } from "@/lib/auth/session";
 
 export default async function DoctorDashboard() {
-  const token = (await cookies()).get("auth-token")?.value;
   const session = await getServerSession();
-  const userId = session?.userId;
+  if (!session) redirect("/login");
 
-  if (!userId) redirect("/login");
-
-  const doctor = await getExpertByUserId(userId);
+  const doctor = await getExpertByUserId(session.id);
   if (!doctor) redirect("/login");
 
   const profileStatus = doctor.profile_status || 'profile_incomplete';

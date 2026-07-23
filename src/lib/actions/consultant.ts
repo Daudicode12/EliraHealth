@@ -14,9 +14,9 @@ import {
 } from "@/lib/db/queries";
 import { Consultation } from "@/lib/db/types";
 import { revalidatePath } from "next/cache";
-import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { z } from "zod";
+import { getServerSession, setSessionCookie } from "@/lib/auth/session";
 
 // Zod Schema for validation (without licenseNumber & medicalCouncilNumber)
 const completeProfileSchema = z.object({
@@ -80,11 +80,10 @@ export async function completeSpecialistOnboarding(data: {
   practicingCertificateUrl?: string;
 }) {
   const session = await getServerSession();
-  const userId = session?.userId;
-
-  if (!userId) {
+  if (!session) {
     return { success: false, error: "Not authenticated" };
   }
+  const userId = session.id;
 
   const doctor = await getExpertByUserId(userId);
   if (!doctor) {
@@ -124,19 +123,8 @@ export async function completeSpecialistOnboarding(data: {
   // 3. Create Notification
   await createNotification(userId, "Your credentials have been submitted for review.", "info");
 
-  // 4. Update the auth JWT cookie
-  const newToken = signAccessToken({
-      userId: userId,
-      email: null,
-    role: 'expert',
-    status: 'pending_review'
-  });
-  (await cookies()).set("auth-token", newToken, {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: "lax",
-    path: "/",
-  });
+  // 4. Update the auth session cookie
+  await setSessionCookie({ id: userId, role: 'expert', status: 'pending_review' });
 
   return { success: true };
 }

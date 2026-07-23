@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getExpertByUserId } from "@/lib/db/queries";
-import { getSession } from "./roles";
+import { verifySessionToken } from "./session";
 
 export interface SpecialistSession {
   userId: string;
@@ -8,14 +8,21 @@ export interface SpecialistSession {
 }
 
 export async function requireSpecialist(req: NextRequest): Promise<SpecialistSession | NextResponse> {
-  const sessionOrError = await getSession(req);
+  const token = req.cookies.get("auth-token")?.value;
 
-  if (sessionOrError instanceof NextResponse) {
-    return sessionOrError;
+  if (!token) {
+    return NextResponse.json({ success: false, error: "Unauthorized: Missing token" }, { status: 401 });
+  }
+
+  const decoded = await verifySessionToken(token);
+  if (!decoded) {
+    return NextResponse.json({ success: false, error: "Unauthorized: Invalid session" }, { status: 401 });
   }
 
   try {
-    if (sessionOrError.role !== "expert") {
+    const { id, role, status } = decoded;
+
+    if (role !== "expert") {
       return NextResponse.json({ success: false, error: "Forbidden: Not a specialist" }, { status: 403 });
     }
 
